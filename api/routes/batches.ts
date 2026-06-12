@@ -5,10 +5,12 @@ import type { FermentationReading, ParameterDeviation } from '../../shared/types
 const router = express.Router();
 
 router.get('/', (req: Request, res: Response) => {
-  const { recipeId } = req.query;
+  const { recipeId, startDate, endDate } = req.query;
   let batches;
 
-  if (recipeId) {
+  if (startDate && endDate) {
+    batches = store.getBatchesByDateRange(startDate as string, endDate as string);
+  } else if (recipeId) {
     batches = store.getBatchesByRecipe(recipeId as string);
   } else {
     batches = store.getAllBatches();

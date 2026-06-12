@@ -31,6 +31,7 @@ interface BrewState {
   compareRecipes: (idA: string, idB: string) => Promise<void>;
 
   fetchBatches: (recipeId?: string) => Promise<void>;
+  fetchBatchesByDateRange: (startDate: string, endDate: string) => Promise<void>;
   fetchBatchById: (id: string) => Promise<void>;
   createBatchFromRecipe: (recipeId: string, batchData: Omit<Batch, 'id' | 'recipeId' | 'recipeVersion' | 'createdAt' | 'readings' | 'deviations'>) => Promise<Batch | null>;
   updateBatch: (id: string, updates: Partial<Batch>) => Promise<Batch | null>;
@@ -262,6 +263,20 @@ export const useBrewStore = create<BrewState>((set, _get) => ({
     try {
       const query = recipeId ? `?recipeId=${recipeId}` : '';
       const response = await apiFetch<Batch[]>(`/batches${query}`);
+      if (response.success) {
+        set({ batches: response.data, loading: false });
+      } else {
+        set({ error: response.error || '获取批次列表失败', loading: false });
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+    }
+  },
+
+  fetchBatchesByDateRange: async (startDate, endDate) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<Batch[]>(`/batches?startDate=${startDate}&endDate=${endDate}`);
       if (response.success) {
         set({ batches: response.data, loading: false });
       } else {

@@ -1,0 +1,177 @@
+export interface MaltItem {
+  id: string;
+  name: string;
+  weight: number;
+  color: string;
+  percentage: number;
+}
+
+export interface HopAddition {
+  id: string;
+  name: string;
+  weight: number;
+  alphaAcid: number;
+  time: number;
+  stage: 'boil' | 'whirlpool' | 'dryhop';
+}
+
+export interface Yeast {
+  id: string;
+  strain: string;
+  brand: string;
+  attenuation: number;
+  temperature: [number, number];
+}
+
+export interface MashStep {
+  id: string;
+  temperature: number;
+  duration: number;
+  description: string;
+}
+
+export interface Recipe {
+  id: string;
+  name: string;
+  style: string;
+  description: string;
+  batchSize: number;
+  originalGravity: number;
+  finalGravity: number;
+  abv: number;
+  ibu: number;
+  srm: number;
+  malts: MaltItem[];
+  hops: HopAddition[];
+  yeast: Yeast;
+  mashSteps: MashStep[];
+  version: string;
+  parentVersion?: string;
+  parentId?: string;
+  branchName?: string;
+  isPublic: boolean;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string;
+  forkCount?: number;
+  rating?: number;
+}
+
+export interface FermentationReading {
+  id: string;
+  date: string;
+  specificGravity: number;
+  temperature: number;
+  ph: number;
+  notes: string;
+}
+
+export interface ParameterDeviation {
+  parameter: string;
+  expected: number;
+  actual: number;
+  unit: string;
+}
+
+export interface Batch {
+  id: string;
+  recipeId: string;
+  recipeVersion: string;
+  recipeName?: string;
+  name: string;
+  brewDate: string;
+  status: 'planning' | 'brewing' | 'fermenting' | 'conditioning' | 'completed';
+  originalGravityActual?: number;
+  finalGravityActual?: number;
+  volumeActual?: number;
+  deviations: ParameterDeviation[];
+  readings: FermentationReading[];
+  notes: string;
+  createdAt: string;
+}
+
+export interface Tasting {
+  id: string;
+  batchId: string;
+  recipeId: string;
+  name: string;
+  date: string;
+  appearance: {
+    score: number;
+    clarity: string;
+    color: string;
+    headRetention: string;
+  };
+  aroma: {
+    score: number;
+    intensity: string;
+    notes: string[];
+  };
+  flavor: {
+    score: number;
+    sweetness: number;
+    bitterness: number;
+    acidity: number;
+    notes: string[];
+  };
+  mouthfeel: {
+    score: number;
+    body: string;
+    carbonation: string;
+    warmth: string;
+  };
+  overall: {
+    score: number;
+    impressions: string;
+  };
+  totalScore: number;
+  notes: string;
+  recipeName?: string;
+  batchName?: string;
+}
+
+export interface RecipeComparison {
+  field: string;
+  versionA: string | number | unknown[];
+  versionB: string | number | unknown[];
+  isDifferent: boolean;
+}
+
+export type BatchStatus = Batch['status'];
+
+export const BATCH_STATUS_LABELS: Record<BatchStatus, string> = {
+  planning: '计划中',
+  brewing: '酿造中',
+  fermenting: '发酵中',
+  conditioning: '熟成中',
+  completed: '已完成'
+};
+
+export const HOP_STAGE_LABELS: Record<HopAddition['stage'], string> = {
+  boil: '煮沸',
+  whirlpool: '旋沉',
+  dryhop: '干投'
+};
+
+export const BEER_STYLES = [
+  'IPA',
+  'Double IPA',
+  'Pale Ale',
+  'Stout',
+  'Imperial Stout',
+  'Porter',
+  'Lager',
+  'Pilsner',
+  'Wheat Beer',
+  'Hefeweizen',
+  'Saison',
+  'Belgian Tripel',
+  'Sour',
+  'Gose',
+  'Barleywine',
+  'Brown Ale',
+  'Amber Ale',
+  'Blonde Ale',
+  'Kölsch',
+  'Bock'
+];

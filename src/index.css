@@ -1,0 +1,189 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    line-height: 1.6;
+    font-weight: 400;
+    color: #1C1917;
+    background: linear-gradient(180deg, #FFFBF5 0%, #FFF7ED 100%);
+    min-height: 100vh;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Playfair Display', serif;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+}
+
+@layer components {
+  .glass-card {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(217, 119, 6, 0.2);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px 0 rgba(217, 119, 6, 0.1);
+  }
+  
+  .btn-primary {
+    @apply px-6 py-3 bg-amber-gradient text-white font-medium rounded-lg
+           hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]
+           transition-all duration-200 flex items-center gap-2 justify-center;
+  }
+  
+  .btn-secondary {
+    @apply px-6 py-3 bg-white text-amber-800 font-medium rounded-lg border-2 border-amber-200
+           hover:bg-amber-50 hover:border-amber-400
+           transition-all duration-200 flex items-center gap-2 justify-center;
+  }
+  
+  .btn-ghost {
+    @apply px-4 py-2 text-amber-700 font-medium rounded-lg
+           hover:bg-amber-100/50 transition-all duration-200 flex items-center gap-2;
+  }
+  
+  .input-field {
+    @apply w-full px-4 py-3 bg-white border-2 border-amber-200 rounded-lg
+           focus:border-amber-500 focus:ring-2 focus:ring-amber-200
+           outline-none transition-all duration-200 text-amber-900
+           placeholder:text-amber-400;
+  }
+  
+  .label {
+    @apply block text-sm font-medium text-amber-800 mb-1.5;
+  }
+  
+  .card {
+    @apply bg-white rounded-xl shadow-card border border-amber-100
+           hover:shadow-card-hover hover:-translate-y-1
+           transition-all duration-300;
+  }
+  
+  .badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium;
+  }
+  
+  .badge-amber {
+    @apply badge bg-amber-100 text-amber-800;
+  }
+  
+  .badge-green {
+    @apply badge bg-hop-100 text-hop-700;
+  }
+  
+  .badge-red {
+    @apply badge bg-red-100 text-red-700;
+  }
+  
+  .badge-blue {
+    @apply badge bg-blue-100 text-blue-700;
+  }
+  
+  .status-badge {
+    @apply badge;
+  }
+  
+  .status-planning {
+    @apply status-badge bg-gray-100 text-gray-700;
+  }
+  
+  .status-brewing {
+    @apply status-badge bg-amber-100 text-amber-700;
+  }
+  
+  .status-fermenting {
+    @apply status-badge bg-hop-100 text-hop-700;
+  }
+  
+  .status-conditioning {
+    @apply status-badge bg-blue-100 text-blue-700;
+  }
+  
+  .status-completed {
+    @apply status-badge bg-gray-100 text-gray-800;
+  }
+  
+  .section-title {
+    @apply text-2xl font-display font-semibold text-amber-900 mb-4;
+  }
+  
+  .card-title {
+    @apply text-lg font-display font-semibold text-amber-900;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: #D97706 transparent;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: #D97706;
+    border-radius: 3px;
+  }
+  
+  .text-shadow {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  .animate-stagger > * {
+    opacity: 0;
+    animation: fadeInUp 0.5s ease-out forwards;
+  }
+  
+  .animate-stagger > *:nth-child(1) { animation-delay: 0.05s; }
+  .animate-stagger > *:nth-child(2) { animation-delay: 0.1s; }
+  .animate-stagger > *:nth-child(3) { animation-delay: 0.15s; }
+  .animate-stagger > *:nth-child(4) { animation-delay: 0.2s; }
+  .animate-stagger > *:nth-child(5) { animation-delay: 0.25s; }
+  .animate-stagger > *:nth-child(6) { animation-delay: 0.3s; }
+  .animate-stagger > *:nth-child(7) { animation-delay: 0.35s; }
+  .animate-stagger > *:nth-child(8) { animation-delay: 0.4s; }
+}
+
+@keyframes fadeInUp {
+  0% { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes slideIn {
+  0% { opacity: 0; transform: translateX(-10px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes pulseSoft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}

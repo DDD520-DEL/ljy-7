@@ -1,13 +1,16 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Star, Edit2, Trash2, Calendar, Beer } from 'lucide-react';
+import { ArrowLeft, Star, Edit2, Trash2, Calendar, Beer, GitCompare, CheckSquare, Square } from 'lucide-react';
 import { useBrewStore } from '../store/brewStore.js';
 import { cn } from '../lib/utils.js';
+import TastingCompareModal from '../components/TastingCompareModal.js';
 
 export default function Tastings() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { tastings, currentTasting, loading, error, fetchTastings, fetchTastingById, deleteTasting } = useBrewStore();
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [showCompareModal, setShowCompareModal] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -26,6 +29,29 @@ export default function Tastings() {
       if (id === tastingId) {
         navigate('/tastings');
       }
+    }
+  };
+
+  const toggleSelect = (tastingId: string) => {
+    setSelectedIds(prev => {
+      if (prev.includes(tastingId)) {
+        return prev.filter(id => id !== tastingId);
+      } else {
+        if (prev.length >= 3) {
+          return prev;
+        }
+        return [...prev, tastingId];
+      }
+    });
+  };
+
+  const clearSelection = () => {
+    setSelectedIds([]);
+  };
+
+  const handleCompare = () => {
+    if (selectedIds.length >= 2) {
+      setShowCompareModal(true);
     }
   };
 
@@ -280,7 +306,38 @@ export default function Tastings() {
             </h1>
             <p className="text-gray-600 mt-1">所有品鉴评分卡记录</p>
           </div>
+          {selectedIds.length > 0 && (
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-600">
+                已选择 <span className="font-semibold text-amber-600">{selectedIds.length}</span> / 3 条
+              </span>
+              <button
+                onClick={clearSelection}
+                className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                取消选择
+              </button>
+              <button
+                onClick={handleCompare}
+                disabled={selectedIds.length < 2}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors",
+                  selectedIds.length >= 2
+                    ? "bg-amber-500 text-white hover:bg-amber-600"
+                    : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                )}
+              >
+                <GitCompare size={18} />
+                雷达图对比
+              </button>
+            </div>
+          )}
         </div>
+        {tastings.length >= 2 && selectedIds.length === 0 && (
+          <p className="text-sm text-gray-500 mt-3">
+            💡 提示：点击卡片左上角的复选框选择 2-3 条记录进行雷达图对比
+          </p>
+        )}
       </div>
 
       {tastings.length === 0 ? (
@@ -291,64 +348,98 @@ export default function Tastings() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {tastings.map(tasting => (
-            <div
-              key={tasting.id}
-              className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow cursor-pointer group"
-              onClick={() => navigate(`/tastings/${tasting.id}`)}
-            >
-              <div className="bg-gradient-to-r from-amber-500 to-amber-600 px-6 py-4 text-white">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="text-lg font-semibold group-hover:underline">{tasting.name}</h3>
-                    <div className="text-sm opacity-90">{tasting.date}</div>
+          {tastings.map(tasting => {
+            const isSelected = selectedIds.includes(tasting.id);
+            return (
+              <div
+                key={tasting.id}
+                className={cn(
+                  "bg-white rounded-xl shadow-sm border overflow-hidden transition-all group relative",
+                  isSelected
+                    ? "border-amber-500 ring-2 ring-amber-200"
+                    : "border-gray-100 hover:shadow-md hover:border-gray-200"
+                )}
+              >
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleSelect(tasting.id);
+                  }}
+                  className="absolute top-3 left-3 z-10 p-1 rounded-lg bg-white/90 shadow-sm hover:bg-white transition-colors"
+                >
+                  {isSelected ? (
+                    <CheckSquare size={20} className="text-amber-500" />
+                  ) : (
+                    <Square size={20} className="text-gray-400 group-hover:text-gray-600" />
+                  )}
+                </button>
+
+                <div
+                  className="cursor-pointer"
+                  onClick={() => navigate(`/tastings/${tasting.id}`)}
+                >
+                  <div className="bg-gradient-to-r from-amber-500 to-amber-600 px-6 py-4 text-white pl-12">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="text-lg font-semibold group-hover:underline">{tasting.name}</h3>
+                        <div className="text-sm opacity-90">{tasting.date}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-3xl font-bold">{tasting.totalScore}</div>
+                        <div className="text-xs opacity-75">总分</div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-3xl font-bold">{tasting.totalScore}</div>
-                    <div className="text-xs opacity-75">总分</div>
+                  <div className="p-6">
+                    <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
+                      <Beer size={14} />
+                      <span>{tasting.batchName}</span>
+                    </div>
+                    <div className="grid grid-cols-5 gap-2 mb-4">
+                      <div className="text-center">
+                        <div className="text-sm font-semibold text-amber-700">{tasting.appearance.score}</div>
+                        <div className="text-xs text-gray-500">外观</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-sm font-semibold text-amber-700">{tasting.aroma.score}</div>
+                        <div className="text-xs text-gray-500">香气</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-sm font-semibold text-amber-700">{tasting.flavor.score}</div>
+                        <div className="text-xs text-gray-500">风味</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-sm font-semibold text-amber-700">{tasting.mouthfeel.score}</div>
+                        <div className="text-xs text-gray-500">口感</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-sm font-semibold text-amber-700">{tasting.overall.score}</div>
+                        <div className="text-xs text-gray-500">整体</div>
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-600 line-clamp-2">{tasting.overall.impressions}</p>
+                    <div className="flex flex-wrap gap-1 mt-4">
+                      {tasting.aroma.notes.slice(0, 3).map((note, idx) => (
+                        <span key={idx} className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full">
+                          {note}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
-              <div className="p-6">
-                <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
-                  <Beer size={14} />
-                  <span>{tasting.batchName}</span>
-                </div>
-                <div className="grid grid-cols-5 gap-2 mb-4">
-                  <div className="text-center">
-                    <div className="text-sm font-semibold text-amber-700">{tasting.appearance.score}</div>
-                    <div className="text-xs text-gray-500">外观</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-sm font-semibold text-amber-700">{tasting.aroma.score}</div>
-                    <div className="text-xs text-gray-500">香气</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-sm font-semibold text-amber-700">{tasting.flavor.score}</div>
-                    <div className="text-xs text-gray-500">风味</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-sm font-semibold text-amber-700">{tasting.mouthfeel.score}</div>
-                    <div className="text-xs text-gray-500">口感</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-sm font-semibold text-amber-700">{tasting.overall.score}</div>
-                    <div className="text-xs text-gray-500">整体</div>
-                  </div>
-                </div>
-                <p className="text-sm text-gray-600 line-clamp-2">{tasting.overall.impressions}</p>
-                <div className="flex flex-wrap gap-1 mt-4">
-                  {tasting.aroma.notes.slice(0, 3).map((note, idx) => (
-                    <span key={idx} className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full">
-                      {note}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
+
+      <TastingCompareModal
+        isOpen={showCompareModal}
+        selectedIds={selectedIds}
+        onClose={() => {
+          setShowCompareModal(false);
+        }}
+      />
     </div>
   );
 }

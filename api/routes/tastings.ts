@@ -78,4 +78,42 @@ router.delete('/:id', (req: Request, res: Response) => {
   });
 });
 
+router.post('/compare', (req: Request, res: Response) => {
+  const { ids } = req.body;
+  
+  if (!ids || !Array.isArray(ids) || ids.length < 2 || ids.length > 3) {
+    return res.status(400).json({
+      success: false,
+      error: '请选择2-3条品鉴记录进行对比',
+    });
+  }
+
+  const tastings = store.getTastingsByIds(ids);
+  
+  if (tastings.length !== ids.length) {
+    return res.status(404).json({
+      success: false,
+      error: '部分品鉴记录不存在',
+    });
+  }
+
+  const comparisonData = tastings.map(tasting => ({
+    id: tasting.id,
+    name: tasting.name,
+    batchName: tasting.batchName,
+    recipeName: tasting.recipeName,
+    totalScore: tasting.totalScore,
+    appearance: tasting.appearance.score,
+    aroma: tasting.aroma.score,
+    flavor: tasting.flavor.score,
+    mouthfeel: tasting.mouthfeel.score,
+    overall: tasting.overall.score,
+  }));
+
+  res.json({
+    success: true,
+    data: comparisonData,
+  });
+});
+
 export default router;

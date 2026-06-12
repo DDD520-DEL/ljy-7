@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Recipe, Batch, Tasting, FermentationReading, ParameterDeviation, RecipeComparison } from '../../shared/types.js';
+import type { Recipe, Batch, Tasting, FermentationReading, ParameterDeviation, RecipeComparison, TastingComparison } from '../../shared/types.js';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -18,6 +18,7 @@ interface BrewState {
   currentTasting: Tasting | null;
   recipeVersions: Recipe[];
   comparison: RecipeComparison[];
+  tastingComparison: TastingComparison[];
   loading: boolean;
   error: string | null;
 
@@ -47,6 +48,7 @@ interface BrewState {
   createTasting: (tasting: Omit<Tasting, 'id'>) => Promise<Tasting | null>;
   updateTasting: (id: string, updates: Partial<Tasting>) => Promise<Tasting | null>;
   deleteTasting: (id: string) => Promise<boolean>;
+  compareTastings: (ids: string[]) => Promise<void>;
 
   fetchPublicRecipes: (params?: { sort?: string; style?: string; search?: string }) => Promise<void>;
   fetchTrendingRecipes: () => Promise<void>;
@@ -81,6 +83,7 @@ export const useBrewStore = create<BrewState>((set, _get) => ({
   currentTasting: null,
   recipeVersions: [],
   comparison: [],
+  tastingComparison: [],
   loading: false,
   error: null,
 
@@ -570,6 +573,23 @@ export const useBrewStore = create<BrewState>((set, _get) => ({
     }
   },
 
+  compareTastings: async (ids) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<TastingComparison[]>('/tastings/compare', {
+        method: 'POST',
+        body: JSON.stringify({ ids }),
+      });
+      if (response.success) {
+        set({ tastingComparison: response.data, loading: false });
+      } else {
+        set({ error: response.error || '对比品鉴记录失败', loading: false });
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+    }
+  },
+
   fetchPublicRecipes: async (params) => {
     set({ loading: true, error: null });
     try {
@@ -609,6 +629,7 @@ export const useBrewStore = create<BrewState>((set, _get) => ({
       currentBatch: null,
       currentTasting: null,
       comparison: [],
+      tastingComparison: [],
       error: null,
     });
   },

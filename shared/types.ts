@@ -152,6 +152,19 @@ export interface RecipeComparison {
   isDifferent: boolean;
 }
 
+export interface TastingComparison {
+  id: string;
+  name: string;
+  batchName?: string;
+  recipeName?: string;
+  totalScore: number;
+  appearance: number;
+  aroma: number;
+  flavor: number;
+  mouthfeel: number;
+  overall: number;
+}
+
 export type BatchStatus = Batch['status'];
 
 export const BATCH_STATUS_LABELS: Record<BatchStatus, string> = {

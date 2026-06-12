@@ -122,7 +122,7 @@ export default function RecipeDetail() {
             </button>
             {recipeVersions.length >= 2 && (
               <Link
-                to={`/compare/${currentRecipe.id}`}
+                to={`/recipes/compare/${currentRecipe.id}/${recipeVersions.find(r => r.id !== currentRecipe.id)?.id}`}
                 className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg font-medium transition-colors"
               >
                 <GitCompare size={18} />

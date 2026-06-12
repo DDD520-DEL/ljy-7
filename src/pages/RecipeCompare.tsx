@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, GitCompare, Check, X, Scale } from 'lucide-react';
 import { useBrewStore } from '../store/brewStore.js';
@@ -22,38 +22,45 @@ const FIELD_LABELS: Record<string, string> = {
 };
 
 export default function RecipeCompare() {
-  const { id } = useParams<{ id: string }>();
+  const { idA, idB } = useParams<{ idA: string; idB: string }>();
   const navigate = useNavigate();
   const { recipeVersions, comparison, currentRecipe, loading, error, fetchRecipeVersions, compareRecipes, fetchRecipeById } = useBrewStore();
-  const [compareWithId, setCompareWithId] = useState<string>('');
 
   useEffect(() => {
-    if (id) {
-      fetchRecipeById(id);
-      fetchRecipeVersions(id);
+    if (idA) {
+      fetchRecipeById(idA);
+      fetchRecipeVersions(idA);
     }
     return () => {
       useBrewStore.getState().clearCurrent();
     };
-  }, [id, fetchRecipeById, fetchRecipeVersions]);
+  }, [idA, fetchRecipeById, fetchRecipeVersions]);
 
   useEffect(() => {
-    if (recipeVersions.length >= 2 && !compareWithId) {
-      const otherVersions = recipeVersions.filter(r => r.id !== id);
-      if (otherVersions.length > 0) {
-        setCompareWithId(otherVersions[0].id);
+    if (idA && idB && idA !== idB) {
+      compareRecipes(idA, idB);
+    }
+  }, [idA, idB, compareRecipes]);
+
+  const getVersionA = () => recipeVersions.find(r => r.id === idA);
+  const getVersionB = () => recipeVersions.find(r => r.id === idB);
+
+  const handleVersionAChange = (newIdA: string) => {
+    if (newIdA !== idB) {
+      navigate(`/recipes/compare/${newIdA}/${idB}`);
+    } else {
+      const otherVersion = recipeVersions.find(r => r.id !== newIdA);
+      if (otherVersion) {
+        navigate(`/recipes/compare/${newIdA}/${otherVersion.id}`);
       }
     }
-  }, [recipeVersions, compareWithId, id]);
+  };
 
-  useEffect(() => {
-    if (id && compareWithId && id !== compareWithId) {
-      compareRecipes(id, compareWithId);
+  const handleVersionBChange = (newIdB: string) => {
+    if (newIdB !== idA) {
+      navigate(`/recipes/compare/${idA}/${newIdB}`);
     }
-  }, [id, compareWithId, compareRecipes]);
-
-  const getVersionA = () => recipeVersions.find(r => r.id === id);
-  const getVersionB = () => recipeVersions.find(r => r.id === compareWithId);
+  };
 
   const formatValue = (value: unknown): string => {
     if (Array.isArray(value)) {
@@ -99,7 +106,7 @@ export default function RecipeCompare() {
     <div className="max-w-7xl mx-auto px-4 py-8">
       <div className="mb-6">
         <button
-          onClick={() => navigate(id ? `/recipes/${id}` : '/recipes')}
+          onClick={() => navigate(idA ? `/recipes/${idA}` : '/recipes')}
           className="flex items-center gap-2 text-gray-600 hover:text-amber-600 mb-4 transition-colors"
         >
           <ArrowLeft size={20} />
@@ -120,8 +127,8 @@ export default function RecipeCompare() {
         <div className="bg-white rounded-xl p-4 border border-gray-100">
           <label className="block text-sm font-medium text-gray-700 mb-2">版本 A</label>
           <select
-            value={id || ''}
-            onChange={(e) => navigate(`/compare/${e.target.value}`)}
+            value={idA || ''}
+            onChange={(e) => handleVersionAChange(e.target.value)}
             className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
           >
             {recipeVersions.map(r => (
@@ -134,11 +141,11 @@ export default function RecipeCompare() {
         <div className="bg-white rounded-xl p-4 border border-gray-100">
           <label className="block text-sm font-medium text-gray-700 mb-2">版本 B</label>
           <select
-            value={compareWithId}
-            onChange={(e) => setCompareWithId(e.target.value)}
+            value={idB || ''}
+            onChange={(e) => handleVersionBChange(e.target.value)}
             className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
           >
-            {recipeVersions.filter(r => r.id !== id).map(r => (
+            {recipeVersions.filter(r => r.id !== idA).map(r => (
               <option key={r.id} value={r.id}>
                 {r.name} - v{r.version} {r.branchName ? `(${r.branchName})` : ''}
               </option>

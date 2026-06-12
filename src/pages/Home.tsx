@@ -1,9 +1,9 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Beer, ListTodo, Star, Users, TrendingUp, Clock, AlertCircle, CheckCircle, Plus } from 'lucide-react';
+import { Beer, ListTodo, Star, Users, TrendingUp, Clock, AlertCircle, CheckCircle, Plus, AlertTriangle, X } from 'lucide-react';
 import { useBrewStore } from '../store/brewStore.js';
 import { BATCH_STATUS_LABELS } from '../../shared/types.js';
-import { formatDate, formatABV, getDaysSince } from '../utils/calculations.js';
+import { formatDate, formatABV, getDaysSince, getAnomalousBatches, formatGravity } from '../utils/calculations.js';
 import { cn } from '../lib/utils.js';
 import BrewCalendar from '../components/BrewCalendar.js';
 
@@ -43,6 +43,10 @@ export default function Home() {
     const now = new Date();
     loadCalendarBatches(now.getFullYear(), now.getMonth());
   }, [loadCalendarBatches]);
+
+  const anomalousBatches = useMemo(() => {
+    return getAnomalousBatches(batches, recipes);
+  }, [batches, recipes]);
 
   const stats = [
     { label: '配方总数', value: recipes.length, icon: Beer, color: 'from-amber-500 to-orange-600', path: '/recipes' },
@@ -85,6 +89,81 @@ export default function Home() {
           </Link>
         </div>
       </div>
+
+      {anomalousBatches.length > 0 && (
+        <div className="bg-gradient-to-r from-red-600 to-red-700 rounded-2xl shadow-lg overflow-hidden animate-pulse">
+          <div className="p-6">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                  <AlertTriangle size={28} className="text-white" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-white">发酵异常预警</h2>
+                  <p className="text-red-100 mt-1">
+                    检测到 <span className="font-bold text-white">{anomalousBatches.length}</span> 个批次出现连续异常，需要立即关注！
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-3">
+              {anomalousBatches.map(({ batch, recipe, anomaly }) => (
+                <Link
+                  key={batch.id}
+                  to={`/batches/${batch.id}`}
+                  className="block bg-white/10 backdrop-blur-sm hover:bg-white/20 rounded-xl p-4 transition-colors border border-white/20"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                          <AlertCircle size={18} className="text-red-200" />
+                          {batch.name}
+                        </h3>
+                        <span className={cn(
+                          "px-2 py-0.5 rounded-full text-xs font-medium",
+                          'bg-white/20 text-white'
+                        )}>
+                          {BATCH_STATUS_LABELS[batch.status as keyof typeof BATCH_STATUS_LABELS]}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-4 text-sm text-red-100">
+                        <span>配方: {recipe?.name || '未知配方'}</span>
+                        <span>酿造日: {formatDate(batch.brewDate)}</span>
+                        <span>第 {getDaysSince(batch.brewDate)} 天</span>
+                      </div>
+                      <div className="mt-3 bg-black/20 rounded-lg p-3">
+                        <div className="text-sm text-white font-medium mb-2 flex items-center gap-2">
+                          <AlertTriangle size={14} />
+                          {anomaly.message}
+                        </div>
+                        <div className="flex flex-wrap gap-3 text-xs">
+                          {anomaly.lastDeviations.slice(-3).map((d, i) => (
+                            <div key={i} className="bg-white/10 rounded px-2 py-1">
+                              <span className="text-red-200">{d.date.slice(5)}</span>
+                              <span className="text-white mx-2">实际 {formatGravity(d.actual)}</span>
+                              <span className="text-red-200">vs 预期 {formatGravity(d.expected)}</span>
+                              <span className={cn(
+                                "ml-2 font-bold",
+                                d.deviation > 0 ? "text-yellow-300" : "text-blue-300"
+                              )}>
+                                ({d.deviation > 0 ? '+' : ''}{formatGravity(d.deviation)})
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="ml-4 text-white/80 flex items-center gap-1 group-hover:text-white transition-colors">
+                      查看详情 →
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((stat) => {

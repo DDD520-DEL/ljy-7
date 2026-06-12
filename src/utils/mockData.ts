@@ -313,9 +313,14 @@ export const mockBatches: Batch[] = [
     volumeActual: 20.5,
     deviations: [],
     readings: [
-      { id: 'read-1', date: daysAgo(5), specificGravity: 1.053, temperature: 20, ph: 5.2, notes: '酵母刚接种' }
+      { id: 'read-1', date: daysAgo(5), specificGravity: 1.053, temperature: 20, ph: 5.2, notes: '酵母刚接种' },
+      { id: 'read-2', date: daysAgo(4), specificGravity: 1.051, temperature: 20, ph: 5.1, notes: '发酵似乎启动较慢' },
+      { id: 'read-3', date: daysAgo(3), specificGravity: 1.050, temperature: 19, ph: 5.1, notes: '比重几乎未下降' },
+      { id: 'read-4', date: daysAgo(2), specificGravity: 1.050, temperature: 19, ph: 5.0, notes: '发酵停滞？酵母可能活性不足' },
+      { id: 'read-5', date: daysAgo(1), specificGravity: 1.050, temperature: 20, ph: 5.0, notes: '连续未下降，需要检查' },
+      { id: 'read-6', date: daysAgo(0).slice(0, 10), specificGravity: 1.051, temperature: 20, ph: 5.0, notes: '比重反而上升，疑似感染' }
     ],
-    notes: '糖化效率不错，比重略高于预期。',
+    notes: '糖化效率不错，比重略高于预期。但发酵似乎有问题，酵母可能活性不足，连续几天比重未下降。',
     createdAt: daysAgo(5)
   },
   {

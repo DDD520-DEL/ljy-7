@@ -1,4 +1,130 @@
-import type { Recipe, MaltItem, HopAddition, Yeast, CostSnapshot } from '../../shared/types.js';
+import type { Recipe, MaltItem, HopAddition, Yeast, CostSnapshot, Batch, FermentationReading } from '../../shared/types.js';
+
+export const FERMENTATION_ANOMALY_THRESHOLD = 0.008;
+export const EXPECTED_FERMENTATION_DAYS = 14;
+
+export interface AnomalyInfo {
+  isAnomalous: boolean;
+  consecutiveCount: number;
+  lastDeviations: Array<{
+    date: string;
+    expected: number;
+    actual: number;
+    deviation: number;
+  }>;
+  message: string;
+}
+
+export const calculateExpectedGravity = (
+  brewDate: string,
+  readingDate: string,
+  originalGravity: number,
+  finalGravity: number
+): number => {
+  const brew = new Date(brewDate).getTime();
+  const reading = new Date(readingDate).getTime();
+  const daysPassed = Math.max(0, Math.ceil((reading - brew) / (1000 * 60 * 60 * 24)));
+
+  if (daysPassed >= EXPECTED_FERMENTATION_DAYS) {
+    return finalGravity;
+  }
+
+  const progress = daysPassed / EXPECTED_FERMENTATION_DAYS;
+  const gravityDrop = originalGravity - finalGravity;
+  return Math.round((originalGravity - progress * gravityDrop) * 1000) / 1000;
+};
+
+export const checkBatchAnomaly = (
+  batch: Batch,
+  recipe: Recipe | undefined,
+  threshold: number = FERMENTATION_ANOMALY_THRESHOLD
+): AnomalyInfo => {
+  if (!recipe || batch.readings.length < 2) {
+    return {
+      isAnomalous: false,
+      consecutiveCount: 0,
+      lastDeviations: [],
+      message: batch.readings.length < 2 ? '读数不足，无法判断异常' : '缺少配方信息'
+    };
+  }
+
+  const sortedReadings = [...batch.readings].sort((a, b) => a.date.localeCompare(b.date));
+
+  const deviations = sortedReadings.map((reading): { reading: FermentationReading; expected: number; deviation: number } => {
+    const expected = calculateExpectedGravity(
+      batch.brewDate,
+      reading.date,
+      recipe.originalGravity,
+      recipe.finalGravity
+    );
+    const deviation = Math.abs(reading.specificGravity - expected);
+    return { reading, expected, deviation };
+  });
+
+  let maxConsecutive = 0;
+  let currentConsecutive = 0;
+  let lastConsecutiveEnd = -1;
+
+  for (let i = 0; i < deviations.length; i++) {
+    if (deviations[i].deviation > threshold) {
+      currentConsecutive++;
+      if (currentConsecutive > maxConsecutive) {
+        maxConsecutive = currentConsecutive;
+        lastConsecutiveEnd = i;
+      }
+    } else {
+      currentConsecutive = 0;
+    }
+  }
+
+  const lastDeviations: AnomalyInfo['lastDeviations'] = [];
+  if (maxConsecutive >= 2) {
+    const startIdx = lastConsecutiveEnd - maxConsecutive + 1;
+    for (let i = startIdx; i <= lastConsecutiveEnd; i++) {
+      lastDeviations.push({
+        date: deviations[i].reading.date,
+        expected: deviations[i].expected,
+        actual: deviations[i].reading.specificGravity,
+        deviation: deviations[i].reading.specificGravity - deviations[i].expected
+      });
+    }
+  }
+
+  const isAnomalous = maxConsecutive >= 2;
+
+  let message = '';
+  if (isAnomalous) {
+    const avgDeviation = Math.round(
+      (lastDeviations.reduce((s, d) => s + Math.abs(d.deviation), 0) / lastDeviations.length) * 10000
+    ) / 10000;
+    message = `连续 ${maxConsecutive} 次读数偏离目标值，平均偏差 ${avgDeviation.toFixed(4)}（阈值 ${threshold}）`;
+  } else if (deviations.length > 0) {
+    const maxDev = Math.max(...deviations.map(d => d.deviation));
+    message = `当前最大偏差 ${maxDev.toFixed(4)}，阈值 ${threshold}`;
+  }
+
+  return {
+    isAnomalous,
+    consecutiveCount: maxConsecutive,
+    lastDeviations,
+    message
+  };
+};
+
+export const getAnomalousBatches = (
+  batches: Batch[],
+  recipes: Recipe[],
+  threshold: number = FERMENTATION_ANOMALY_THRESHOLD
+): Array<{ batch: Batch; recipe: Recipe | undefined; anomaly: AnomalyInfo }> => {
+  return batches
+    .map(batch => {
+      const recipe = recipes.find(r => r.id === batch.recipeId);
+      const anomaly = checkBatchAnomaly(batch, recipe, threshold);
+      return { batch, recipe, anomaly };
+    })
+    .filter(item => item.anomaly.isAnomalous)
+    .sort((a, b) => a.batch.brewDate.localeCompare(b.batch.brewDate));
+};
 
 export const calculateABV = (og: number, fg: number): number => {
   return Math.round((og - fg) * 131.25 * 100) / 100;

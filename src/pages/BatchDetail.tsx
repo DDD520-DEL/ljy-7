@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Plus, Calendar, AlertCircle, Thermometer, Droplets, Beaker, Trash2, Save, X, DollarSign, Edit2 } from 'lucide-react';
-import { Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { ArrowLeft, Plus, Calendar, AlertCircle, Thermometer, Droplets, Beaker, Trash2, Save, X, DollarSign, Edit2, AlertTriangle } from 'lucide-react';
+import { Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, ReferenceLine } from 'recharts';
 import { useBrewStore } from '../store/brewStore.js';
 import { BATCH_STATUS_LABELS } from '../../shared/types.js';
 import type { ParameterDeviation, BatchStatus } from '../../shared/types.js';
 import { cn } from '../lib/utils.js';
-import { formatCurrency } from '../utils/calculations.js';
+import { formatCurrency, checkBatchAnomaly, FERMENTATION_ANOMALY_THRESHOLD, calculateExpectedGravity, formatGravity } from '../utils/calculations.js';
 
 export default function BatchDetail() {
   const { id } = useParams<{ id: string }>();
@@ -120,16 +120,36 @@ export default function BatchDetail() {
   const chartData = currentBatch.readings
     .slice()
     .sort((a, b) => a.date.localeCompare(b.date))
-    .map(r => ({
-      date: r.date.slice(5),
-      比重: r.specificGravity,
-      温度: r.temperature,
-      pH: r.ph,
-    }));
+    .map(r => {
+      const expected = currentRecipe
+        ? calculateExpectedGravity(
+            currentBatch.brewDate,
+            r.date,
+            currentRecipe.originalGravity,
+            currentRecipe.finalGravity
+          )
+        : null;
+      return {
+        date: r.date.slice(5),
+        比重: r.specificGravity,
+        预期比重: expected,
+        温度: r.temperature,
+        pH: r.ph,
+        isAnomalous: anomalyDates.has(r.date.slice(0, 10))
+      };
+    });
 
   const abvActual = currentBatch.originalGravityActual && currentBatch.finalGravityActual
     ? ((currentBatch.originalGravityActual - currentBatch.finalGravityActual) * 131.25).toFixed(1)
     : null;
+
+  const anomaly = useMemo(() => {
+    return checkBatchAnomaly(currentBatch, currentRecipe || undefined);
+  }, [currentBatch, currentRecipe]);
+
+  const anomalyDates = useMemo(() => {
+    return new Set(anomaly.lastDeviations.map(d => d.date.slice(0, 10)));
+  }, [anomaly.lastDeviations]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -145,6 +165,12 @@ export default function BatchDetail() {
           <div>
             <div className="flex items-center gap-3 mb-2">
               <h1 className="text-3xl font-bold text-amber-900">{currentBatch.name}</h1>
+              {anomaly.isAnomalous && (
+                <span className="inline-flex items-center gap-1 px-3 py-1 bg-red-600 text-white text-sm font-bold rounded-full animate-pulse">
+                  <AlertTriangle size={14} />
+                  发酵异常
+                </span>
+              )}
               <select
                 value={currentBatch.status}
                 onChange={(e) => handleStatusChange(e.target.value)}
@@ -197,6 +223,67 @@ export default function BatchDetail() {
           </div>
         </div>
       </div>
+
+      {anomaly.isAnomalous && (
+        <div className="mb-6 bg-red-50 border-2 border-red-300 rounded-xl p-6 shadow-lg">
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0 w-12 h-12 bg-red-600 rounded-full flex items-center justify-center">
+              <AlertTriangle size={24} className="text-white" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-xl font-bold text-red-800 mb-2 flex items-center gap-2">
+                发酵异常预警！
+              </h3>
+              <p className="text-red-700 mb-4 font-medium">
+                {anomaly.message}
+              </p>
+              <div className="bg-white rounded-lg p-4 border border-red-200">
+                <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                  <AlertCircle size={16} className="text-red-600" />
+                  异常读数详情
+                </h4>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-2 px-3 text-gray-600 font-medium">日期</th>
+                        <th className="text-right py-2 px-3 text-gray-600 font-medium">预期比重</th>
+                        <th className="text-right py-2 px-3 text-gray-600 font-medium">实际比重</th>
+                        <th className="text-right py-2 px-3 text-gray-600 font-medium">偏差</th>
+                        <th className="text-center py-2 px-3 text-gray-600 font-medium">状态</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {anomaly.lastDeviations.map((d, idx) => (
+                        <tr key={idx} className="border-b border-gray-100 last:border-0">
+                          <td className="py-2 px-3 text-gray-800">{d.date.slice(0, 10)}</td>
+                          <td className="py-2 px-3 text-right text-gray-600">{formatGravity(d.expected)}</td>
+                          <td className="py-2 px-3 text-right font-semibold text-amber-700">{formatGravity(d.actual)}</td>
+                          <td className={cn(
+                            "py-2 px-3 text-right font-semibold",
+                            d.deviation > 0 ? "text-red-600" : "text-blue-600"
+                          )}>
+                            {d.deviation > 0 ? '+' : ''}{formatGravity(d.deviation)}
+                          </td>
+                          <td className="py-2 px-3 text-center">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-medium">
+                              <AlertCircle size={12} />
+                              超阈值
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <p className="mt-3 text-sm text-red-600">
+                ⚠️ 建议：请检查酵母活性、发酵温度、是否有感染等情况，必要时考虑补种酵母。
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-xl p-4 border border-gray-100 text-center">
@@ -337,8 +424,23 @@ export default function BatchDetail() {
       )}
 
       {chartData.length > 0 && (
-        <div className="bg-white rounded-xl p-6 border border-gray-100 mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">发酵趋势图</h3>
+        <div className={cn(
+          "bg-white rounded-xl p-6 border mb-6",
+          anomaly.isAnomalous ? "border-red-300 ring-2 ring-red-100" : "border-gray-100"
+        )}>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">发酵趋势图</h3>
+            {anomaly.message && (
+              <span className={cn(
+                "text-sm font-medium px-3 py-1 rounded-full",
+                anomaly.isAnomalous
+                  ? "bg-red-100 text-red-700"
+                  : "bg-gray-100 text-gray-600"
+              )}>
+                {anomaly.message}
+              </span>
+            )}
+          </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData}>
@@ -362,6 +464,12 @@ export default function BatchDetail() {
                     border: '1px solid #e5e7eb',
                     borderRadius: '8px',
                   }}
+                  formatter={(value: number, name: string) => {
+                    if (name === '预期比重' || name === '比重') {
+                      return [formatGravity(value), name];
+                    }
+                    return [value, name];
+                  }}
                 />
                 <Legend />
                 <Area
@@ -371,6 +479,31 @@ export default function BatchDetail() {
                   stroke="#d97706"
                   strokeWidth={2}
                   fill="url(#colorGravity)"
+                  dot={(props: any) => {
+                    const { cx, cy, payload } = props;
+                    if (payload?.isAnomalous) {
+                      return (
+                        <circle
+                          cx={cx}
+                          cy={cy}
+                          r={6}
+                          fill="#dc2626"
+                          stroke="#991b1b"
+                          strokeWidth={2}
+                        />
+                      );
+                    }
+                    return <circle cx={cx} cy={cy} r={4} fill="#d97706" />;
+                  }}
+                />
+                <Line
+                  yAxisId="left"
+                  type="monotone"
+                  dataKey="预期比重"
+                  stroke="#6b7280"
+                  strokeWidth={1.5}
+                  strokeDasharray="5 5"
+                  dot={false}
                 />
                 <Line
                   yAxisId="right"
@@ -390,6 +523,20 @@ export default function BatchDetail() {
                 />
               </AreaChart>
             </ResponsiveContainer>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-4 text-xs text-gray-500">
+            <span className="flex items-center gap-1">
+              <span className="w-3 h-3 rounded-full bg-amber-600" /> 实际比重
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-6 h-0.5 border-t-2 border-dashed border-gray-500" /> 预期比重
+            </span>
+            {anomaly.isAnomalous && (
+              <span className="flex items-center gap-1 text-red-600">
+                <span className="w-3 h-3 rounded-full bg-red-600 ring-2 ring-red-300" /> 异常点
+              </span>
+            )}
+            <span className="ml-auto">阈值: {FERMENTATION_ANOMALY_THRESHOLD}</span>
           </div>
         </div>
       )}
@@ -523,7 +670,9 @@ export default function BatchDetail() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">日期</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">比重</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">实际比重</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">预期比重</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">偏差</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">温度</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">pH</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">备注</th>
@@ -534,23 +683,72 @@ export default function BatchDetail() {
                   {currentBatch.readings
                     .slice()
                     .sort((a, b) => b.date.localeCompare(a.date))
-                    .map(reading => (
-                      <tr key={reading.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{reading.date}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-amber-700">{reading.specificGravity}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600">{reading.temperature}°C</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">{reading.ph}</td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{reading.notes || '-'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right">
-                          <button
-                            onClick={() => handleDeleteReading(reading.id)}
-                            className="text-red-500 hover:text-red-700"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    .map(reading => {
+                      const isAnomalous = anomalyDates.has(reading.date.slice(0, 10));
+                      const expectedGravity = currentRecipe
+                        ? calculateExpectedGravity(
+                            currentBatch.brewDate,
+                            reading.date,
+                            currentRecipe.originalGravity,
+                            currentRecipe.finalGravity
+                          )
+                        : null;
+                      const deviation = expectedGravity !== null
+                        ? reading.specificGravity - expectedGravity
+                        : null;
+                      return (
+                        <tr
+                          key={reading.id}
+                          className={cn(
+                            "transition-colors",
+                            isAnomalous
+                              ? "bg-red-50 hover:bg-red-100 border-l-4 border-l-red-500"
+                              : "hover:bg-gray-50"
+                          )}
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            <div className="flex items-center gap-2">
+                              {isAnomalous && <AlertTriangle size={14} className="text-red-500 flex-shrink-0" />}
+                              <span className={isAnomalous ? "text-red-800 font-semibold" : "text-gray-900"}>
+                                {reading.date}
+                              </span>
+                            </div>
+                          </td>
+                          <td className={cn(
+                            "px-6 py-4 whitespace-nowrap text-sm font-medium text-right",
+                            isAnomalous ? "text-red-700 font-bold" : "text-amber-700"
+                          )}>
+                            {reading.specificGravity}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">
+                            {expectedGravity !== null ? expectedGravity.toFixed(3) : '-'}
+                          </td>
+                          <td className={cn(
+                            "px-6 py-4 whitespace-nowrap text-sm font-medium text-right",
+                            deviation !== null
+                              ? Math.abs(deviation) > FERMENTATION_ANOMALY_THRESHOLD
+                                ? "text-red-600 font-bold"
+                                : deviation > 0 ? "text-amber-600" : "text-blue-600"
+                              : "text-gray-400"
+                          )}>
+                            {deviation !== null
+                              ? `${deviation > 0 ? '+' : ''}${deviation.toFixed(4)}`
+                              : '-'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600">{reading.temperature}°C</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">{reading.ph}</td>
+                          <td className="px-6 py-4 text-sm text-gray-600">{reading.notes || '-'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right">
+                            <button
+                              onClick={() => handleDeleteReading(reading.id)}
+                              className="text-red-500 hover:text-red-700"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                 </tbody>
               </table>
             </div>

@@ -7,6 +7,7 @@ import { cn } from '../lib/utils.js';
 
 interface BrewCalendarProps {
   batches: Batch[];
+  onMonthChange?: (year: number, month: number) => void;
 }
 
 const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日'];
@@ -44,7 +45,7 @@ function toDateKey(year: number, month: number, day: number): string {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
-export default function BrewCalendar({ batches }: BrewCalendarProps) {
+export default function BrewCalendar({ batches, onMonthChange }: BrewCalendarProps) {
   const navigate = useNavigate();
   const today = new Date();
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
@@ -76,29 +77,42 @@ export default function BrewCalendar({ batches }: BrewCalendarProps) {
   const todayKey = toDateKey(today.getFullYear(), today.getMonth(), today.getDate());
 
   const goToPrevMonth = () => {
+    let newYear = currentYear;
+    let newMonth = currentMonth;
     if (currentMonth === 0) {
-      setCurrentMonth(11);
-      setCurrentYear(currentYear - 1);
+      newMonth = 11;
+      newYear = currentYear - 1;
     } else {
-      setCurrentMonth(currentMonth - 1);
+      newMonth = currentMonth - 1;
     }
+    setCurrentYear(newYear);
+    setCurrentMonth(newMonth);
     setSelectedDay(null);
+    onMonthChange?.(newYear, newMonth);
   };
 
   const goToNextMonth = () => {
+    let newYear = currentYear;
+    let newMonth = currentMonth;
     if (currentMonth === 11) {
-      setCurrentMonth(0);
-      setCurrentYear(currentYear + 1);
+      newMonth = 0;
+      newYear = currentYear + 1;
     } else {
-      setCurrentMonth(currentMonth + 1);
+      newMonth = currentMonth + 1;
     }
+    setCurrentYear(newYear);
+    setCurrentMonth(newMonth);
     setSelectedDay(null);
+    onMonthChange?.(newYear, newMonth);
   };
 
   const goToToday = () => {
-    setCurrentYear(today.getFullYear());
-    setCurrentMonth(today.getMonth());
+    const todayYear = today.getFullYear();
+    const todayMonth = today.getMonth();
+    setCurrentYear(todayYear);
+    setCurrentMonth(todayMonth);
     setSelectedDay(today.getDate());
+    onMonthChange?.(todayYear, todayMonth);
   };
 
   return (

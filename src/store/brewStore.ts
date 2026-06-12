@@ -11,6 +11,7 @@ interface ApiResponse<T> {
 interface BrewState {
   recipes: Recipe[];
   batches: Batch[];
+  calendarBatches: Batch[];
   tastings: Tasting[];
   currentRecipe: Recipe | null;
   currentBatch: Batch | null;
@@ -73,6 +74,7 @@ async function apiFetch<T>(
 export const useBrewStore = create<BrewState>((set, _get) => ({
   recipes: [],
   batches: [],
+  calendarBatches: [],
   tastings: [],
   currentRecipe: null,
   currentBatch: null,
@@ -278,7 +280,7 @@ export const useBrewStore = create<BrewState>((set, _get) => ({
     try {
       const response = await apiFetch<Batch[]>(`/batches?startDate=${startDate}&endDate=${endDate}`);
       if (response.success) {
-        set({ batches: response.data, loading: false });
+        set({ calendarBatches: response.data, loading: false });
       } else {
         set({ error: response.error || '获取批次列表失败', loading: false });
       }

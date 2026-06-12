@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Beer, ListTodo, Star, Users, TrendingUp, Clock, AlertCircle, CheckCircle, Plus } from 'lucide-react';
 import { useBrewStore } from '../store/brewStore.js';
@@ -24,14 +24,13 @@ const statusIcons: Record<string, React.ReactNode> = {
 };
 
 export default function Home() {
-  const { recipes, batches, tastings, loading, fetchRecipes, fetchBatches, fetchBatchesByDateRange, fetchTastings } = useBrewStore();
-  const [calYear, setCalYear] = useState(new Date().getFullYear());
-  const [calMonth, setCalMonth] = useState(new Date().getMonth());
+  const { recipes, batches, calendarBatches, tastings, loading, fetchRecipes, fetchBatches, fetchBatchesByDateRange, fetchTastings } = useBrewStore();
 
   useEffect(() => {
     fetchRecipes();
+    fetchBatches();
     fetchTastings();
-  }, [fetchRecipes, fetchTastings]);
+  }, [fetchRecipes, fetchBatches, fetchTastings]);
 
   const loadCalendarBatches = useCallback((year: number, month: number) => {
     const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
@@ -41,8 +40,9 @@ export default function Home() {
   }, [fetchBatchesByDateRange]);
 
   useEffect(() => {
-    loadCalendarBatches(calYear, calMonth);
-  }, [calYear, calMonth, loadCalendarBatches]);
+    const now = new Date();
+    loadCalendarBatches(now.getFullYear(), now.getMonth());
+  }, [loadCalendarBatches]);
 
   const stats = [
     { label: '配方总数', value: recipes.length, icon: Beer, color: 'from-amber-500 to-orange-600', path: '/recipes' },
@@ -109,7 +109,7 @@ export default function Home() {
         })}
       </div>
 
-      <BrewCalendar batches={batches} />
+      <BrewCalendar batches={calendarBatches} onMonthChange={loadCalendarBatches} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl p-6 shadow-sm">

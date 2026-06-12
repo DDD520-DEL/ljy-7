@@ -17,23 +17,24 @@ export const mockRecipes: Recipe[] = [
     ibu: 65,
     srm: 8,
     malts: [
-      { id: 'malt-1', name: 'Pale Malt (2 Row)', weight: 4.5, color: '3', percentage: 85 },
-      { id: 'malt-2', name: 'Caramel Malt 20L', weight: 0.4, color: '20', percentage: 7.5 },
-      { id: 'malt-3', name: 'Carapils Malt', weight: 0.4, color: '1.5', percentage: 7.5 }
+      { id: 'malt-1', name: 'Pale Malt (2 Row)', weight: 4.5, color: '3', percentage: 85, pricePerKg: 30 },
+      { id: 'malt-2', name: 'Caramel Malt 20L', weight: 0.4, color: '20', percentage: 7.5, pricePerKg: 45 },
+      { id: 'malt-3', name: 'Carapils Malt', weight: 0.4, color: '1.5', percentage: 7.5, pricePerKg: 40 }
     ],
     hops: [
-      { id: 'hop-1', name: 'Cascade', weight: 28, alphaAcid: 7.5, time: 60, stage: 'boil' },
-      { id: 'hop-2', name: 'Centennial', weight: 28, alphaAcid: 10.0, time: 30, stage: 'boil' },
-      { id: 'hop-3', name: 'Cascade', weight: 42, alphaAcid: 7.5, time: 5, stage: 'boil' },
-      { id: 'hop-4', name: 'Centennial', weight: 56, alphaAcid: 10.0, time: 0, stage: 'whirlpool' },
-      { id: 'hop-5', name: 'Cascade', weight: 84, alphaAcid: 7.5, time: 7, stage: 'dryhop' }
+      { id: 'hop-1', name: 'Cascade', weight: 28, alphaAcid: 7.5, time: 60, stage: 'boil', pricePerKg: 200 },
+      { id: 'hop-2', name: 'Centennial', weight: 28, alphaAcid: 10.0, time: 30, stage: 'boil', pricePerKg: 220 },
+      { id: 'hop-3', name: 'Cascade', weight: 42, alphaAcid: 7.5, time: 5, stage: 'boil', pricePerKg: 200 },
+      { id: 'hop-4', name: 'Centennial', weight: 56, alphaAcid: 10.0, time: 0, stage: 'whirlpool', pricePerKg: 220 },
+      { id: 'hop-5', name: 'Cascade', weight: 84, alphaAcid: 7.5, time: 7, stage: 'dryhop', pricePerKg: 200 }
     ],
     yeast: {
       id: 'yeast-1',
       strain: 'US-05 American Ale',
       brand: 'Fermentis',
       attenuation: 78,
-      temperature: [18, 22]
+      temperature: [18, 22],
+      price: 35
     },
     mashSteps: [
       { id: 'mash-1', temperature: 67, duration: 60, description: '蛋白休止' },

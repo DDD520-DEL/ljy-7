@@ -3,6 +3,7 @@ import { Beer, Home as HomeIcon, ListTodo, Star, Users } from "lucide-react";
 import Home from "@/pages/Home";
 import Recipes from "@/pages/Recipes";
 import RecipeDetail from "@/pages/RecipeDetail";
+import RecipeEdit from "@/pages/RecipeEdit";
 import RecipeCompare from "@/pages/RecipeCompare";
 import Batches from "@/pages/Batches";
 import BatchDetail from "@/pages/BatchDetail";
@@ -66,7 +67,9 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/recipes" element={<Recipes />} />
+            <Route path="/recipes/new" element={<RecipeEdit />} />
             <Route path="/recipes/:id" element={<RecipeDetail />} />
+            <Route path="/recipes/:id/edit" element={<RecipeEdit />} />
             <Route path="/recipes/compare/:idA/:idB" element={<RecipeCompare />} />
             <Route path="/batches" element={<Batches />} />
             <Route path="/batches/:id" element={<BatchDetail />} />

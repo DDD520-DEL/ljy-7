@@ -4,6 +4,7 @@ export interface MaltItem {
   weight: number;
   color: string;
   percentage: number;
+  pricePerKg?: number;
 }
 
 export interface HopAddition {
@@ -13,6 +14,7 @@ export interface HopAddition {
   alphaAcid: number;
   time: number;
   stage: 'boil' | 'whirlpool' | 'dryhop';
+  pricePerKg?: number;
 }
 
 export interface Yeast {
@@ -21,6 +23,7 @@ export interface Yeast {
   brand: string;
   attenuation: number;
   temperature: [number, number];
+  price?: number;
 }
 
 export interface MashStep {
@@ -73,6 +76,16 @@ export interface ParameterDeviation {
   unit: string;
 }
 
+export interface CostSnapshot {
+  maltCost: number;
+  hopCost: number;
+  yeastCost: number;
+  totalCost: number;
+  malts: Array<{ name: string; weight: number; pricePerKg: number; cost: number }>;
+  hops: Array<{ name: string; weight: number; pricePerKg: number; cost: number }>;
+  yeast: { strain: string; brand: string; price: number };
+}
+
 export interface Batch {
   id: string;
   recipeId: string;
@@ -88,6 +101,8 @@ export interface Batch {
   readings: FermentationReading[];
   notes: string;
   createdAt: string;
+  costSnapshot?: CostSnapshot;
+  actualCost?: number;
 }
 
 export interface Tasting {

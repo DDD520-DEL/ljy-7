@@ -1,3 +1,5 @@
+import type { Recipe, MaltItem, HopAddition, Yeast, CostSnapshot } from '../../shared/types.js';
+
 export const calculateABV = (og: number, fg: number): number => {
   return Math.round((og - fg) * 131.25 * 100) / 100;
 };
@@ -23,6 +25,73 @@ export const calculateSRM = (malts: Array<{weight: number; color: number; batchS
     totalMCU += (malt.weight * 2.20462 * malt.color) / (malt.batchSize * 0.264172);
   });
   return Math.round(1.4922 * Math.pow(totalMCU, 0.6859) * 10) / 10;
+};
+
+export const calculateMaltCost = (malt: MaltItem): number => {
+  if (!malt.pricePerKg || malt.pricePerKg <= 0) return 0;
+  return Math.round(malt.weight * malt.pricePerKg * 100) / 100;
+};
+
+export const calculateHopCost = (hop: HopAddition): number => {
+  if (!hop.pricePerKg || hop.pricePerKg <= 0) return 0;
+  return Math.round((hop.weight / 1000) * hop.pricePerKg * 100) / 100;
+};
+
+export const calculateYeastCost = (yeast: Yeast): number => {
+  if (!yeast.price || yeast.price <= 0) return 0;
+  return yeast.price;
+};
+
+export const calculateTotalMaltCost = (malts: MaltItem[]): number => {
+  return Math.round(malts.reduce((sum, malt) => sum + calculateMaltCost(malt), 0) * 100) / 100;
+};
+
+export const calculateTotalHopCost = (hops: HopAddition[]): number => {
+  return Math.round(hops.reduce((sum, hop) => sum + calculateHopCost(hop), 0) * 100) / 100;
+};
+
+export const calculateTotalCost = (recipe: Recipe): number => {
+  const maltCost = calculateTotalMaltCost(recipe.malts);
+  const hopCost = calculateTotalHopCost(recipe.hops);
+  const yeastCost = calculateYeastCost(recipe.yeast);
+  return Math.round((maltCost + hopCost + yeastCost) * 100) / 100;
+};
+
+export const createCostSnapshot = (recipe: Recipe): CostSnapshot | null => {
+  const maltCost = calculateTotalMaltCost(recipe.malts);
+  const hopCost = calculateTotalHopCost(recipe.hops);
+  const yeastCost = calculateYeastCost(recipe.yeast);
+  const totalCost = maltCost + hopCost + yeastCost;
+
+  if (totalCost <= 0) return null;
+
+  return {
+    maltCost: Math.round(maltCost * 100) / 100,
+    hopCost: Math.round(hopCost * 100) / 100,
+    yeastCost: Math.round(yeastCost * 100) / 100,
+    totalCost: Math.round(totalCost * 100) / 100,
+    malts: recipe.malts.map(m => ({
+      name: m.name,
+      weight: m.weight,
+      pricePerKg: m.pricePerKg || 0,
+      cost: calculateMaltCost(m)
+    })),
+    hops: recipe.hops.map(h => ({
+      name: h.name,
+      weight: h.weight,
+      pricePerKg: h.pricePerKg || 0,
+      cost: calculateHopCost(h)
+    })),
+    yeast: {
+      strain: recipe.yeast.strain,
+      brand: recipe.yeast.brand,
+      price: recipe.yeast.price || 0
+    }
+  };
+};
+
+export const formatCurrency = (amount: number): string => {
+  return `¥${amount.toFixed(2)}`;
 };
 
 export const formatGravity = (gravity: number): string => {

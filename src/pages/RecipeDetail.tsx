@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, GitBranch, GitFork, Plus, Thermometer, Droplets, Scale, Leaf, Calendar, TrendingUp, Clock, Star, Eye, EyeOff, Edit2, Trash2, GitCompare } from 'lucide-react';
+import { ArrowLeft, GitBranch, GitFork, Plus, Thermometer, Droplets, Scale, Leaf, Calendar, TrendingUp, Clock, Star, Eye, EyeOff, Edit2, Trash2, GitCompare, DollarSign } from 'lucide-react';
 import { useBrewStore } from '../store/brewStore.js';
 import { BATCH_STATUS_LABELS, HOP_STAGE_LABELS } from '../../shared/types.js';
 import { cn } from '../lib/utils.js';
+import { calculateTotalMaltCost, calculateTotalHopCost, calculateYeastCost, calculateMaltCost, calculateHopCost, formatCurrency } from '../utils/calculations.js';
 
 export default function RecipeDetail() {
   const { id } = useParams<{ id: string }>();
@@ -147,7 +148,7 @@ export default function RecipeDetail() {
         </div>
       </div>
 
-      <div className="grid grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-5 gap-4 mb-4">
         <div className="bg-white rounded-xl p-4 border border-gray-100 text-center">
           <div className="text-2xl font-bold text-amber-700">{currentRecipe.abv}%</div>
           <div className="text-sm text-gray-500">酒精度</div>
@@ -169,6 +170,37 @@ export default function RecipeDetail() {
           <div className="text-sm text-gray-500">批次容量</div>
         </div>
       </div>
+
+      {(calculateTotalMaltCost(currentRecipe.malts) > 0 || calculateTotalHopCost(currentRecipe.hops) > 0 || calculateYeastCost(currentRecipe.yeast) > 0) && (
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-4 mb-6 border border-amber-200">
+          <div className="flex items-center gap-2 mb-3">
+            <DollarSign className="text-amber-700" size={18} />
+            <span className="font-semibold text-amber-900">预计物料成本</span>
+          </div>
+          <div className="grid grid-cols-4 gap-4">
+            <div className="text-center">
+              <div className="text-lg font-bold text-amber-700">{formatCurrency(calculateTotalMaltCost(currentRecipe.malts))}</div>
+              <div className="text-xs text-gray-500">麦芽</div>
+            </div>
+            <div className="text-center">
+              <div className="text-lg font-bold text-green-700">{formatCurrency(calculateTotalHopCost(currentRecipe.hops))}</div>
+              <div className="text-xs text-gray-500">酒花</div>
+            </div>
+            <div className="text-center">
+              <div className="text-lg font-bold text-purple-700">{formatCurrency(calculateYeastCost(currentRecipe.yeast))}</div>
+              <div className="text-xs text-gray-500">酵母</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xl font-bold text-amber-900">
+                {formatCurrency(calculateTotalMaltCost(currentRecipe.malts) + calculateTotalHopCost(currentRecipe.hops) + calculateYeastCost(currentRecipe.yeast))}
+              </div>
+              <div className="text-xs text-gray-500">
+                每升 {formatCurrency((calculateTotalMaltCost(currentRecipe.malts) + calculateTotalHopCost(currentRecipe.hops) + calculateYeastCost(currentRecipe.yeast)) / currentRecipe.batchSize)}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="border-b border-gray-200 mb-6">
         <nav className="flex gap-8">
@@ -205,10 +237,12 @@ export default function RecipeDetail() {
                   <div>
                     <div className="font-medium text-gray-900">{malt.name}</div>
                     <div className="text-sm text-gray-500">色度: {malt.color}</div>
+                    {malt.pricePerKg && <div className="text-xs text-gray-400">单价: ¥{malt.pricePerKg}/kg</div>}
                   </div>
                   <div className="text-right">
                     <div className="font-semibold text-amber-700">{malt.weight} kg</div>
                     <div className="text-sm text-gray-500">{malt.percentage}%</div>
+                    {malt.pricePerKg && <div className="text-sm font-medium text-amber-600">{formatCurrency(calculateMaltCost(malt))}</div>}
                   </div>
                 </div>
               ))}
@@ -231,12 +265,14 @@ export default function RecipeDetail() {
                       </span>
                       <span>α酸: {hop.alphaAcid}%</span>
                     </div>
+                    {hop.pricePerKg && <div className="text-xs text-gray-400 mt-1">单价: ¥{hop.pricePerKg}/kg</div>}
                   </div>
                   <div className="text-right">
                     <div className="font-semibold text-amber-700">{hop.weight} g</div>
                     <div className="text-sm text-gray-500">
                       {hop.time > 0 ? `${hop.time} 分钟` : hop.stage === 'dryhop' ? '干投' : '旋沉'}
                     </div>
+                    {hop.pricePerKg && <div className="text-sm font-medium text-green-600 mt-1">{formatCurrency(calculateHopCost(hop))}</div>}
                   </div>
                 </div>
               ))}
@@ -261,12 +297,18 @@ export default function RecipeDetail() {
                 <span className="text-gray-600">发酵度</span>
                 <span className="font-semibold text-gray-900">{currentRecipe.yeast.attenuation}%</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between mb-3">
                 <span className="text-gray-600">发酵温度</span>
                 <span className="font-semibold text-gray-900">
                   {currentRecipe.yeast.temperature[0]} - {currentRecipe.yeast.temperature[1]}°C
                 </span>
               </div>
+              {currentRecipe.yeast.price && (
+                <div className="flex justify-between pt-2 border-t border-gray-200">
+                  <span className="text-gray-600">价格</span>
+                  <span className="font-semibold text-purple-700">{formatCurrency(currentRecipe.yeast.price)}</span>
+                </div>
+              )}
             </div>
           </div>
 

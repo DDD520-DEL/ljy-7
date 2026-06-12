@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Plus, Calendar, AlertCircle, Thermometer, Droplets, Beaker, Trash2, Save, X } from 'lucide-react';
+import { ArrowLeft, Plus, Calendar, AlertCircle, Thermometer, Droplets, Beaker, Trash2, Save, X, DollarSign, Edit2 } from 'lucide-react';
 import { Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { useBrewStore } from '../store/brewStore.js';
 import { BATCH_STATUS_LABELS } from '../../shared/types.js';
 import type { ParameterDeviation, BatchStatus } from '../../shared/types.js';
 import { cn } from '../lib/utils.js';
+import { formatCurrency } from '../utils/calculations.js';
 
 export default function BatchDetail() {
   const { id } = useParams<{ id: string }>();
@@ -14,6 +15,8 @@ export default function BatchDetail() {
   const [activeTab, setActiveTab] = useState<'overview' | 'readings' | 'deviations' | 'tastings'>('overview');
   const [showAddReading, setShowAddReading] = useState(false);
   const [showAddDeviation, setShowAddDeviation] = useState(false);
+  const [isEditingActualCost, setIsEditingActualCost] = useState(false);
+  const [actualCostInput, setActualCostInput] = useState('');
   const [newReading, setNewReading] = useState({
     date: new Date().toISOString().slice(0, 10),
     specificGravity: 1.050,
@@ -72,6 +75,27 @@ export default function BatchDetail() {
   const handleStatusChange = async (status: string) => {
     if (!currentBatch) return;
     await updateBatch(currentBatch.id, { status: status as BatchStatus });
+  };
+
+  const handleEditActualCost = () => {
+    if (currentBatch?.actualCost !== undefined) {
+      setActualCostInput(currentBatch.actualCost.toString());
+    }
+    setIsEditingActualCost(true);
+  };
+
+  const handleSaveActualCost = async () => {
+    if (!currentBatch) return;
+    const actualCost = parseFloat(actualCostInput);
+    if (!isNaN(actualCost) && actualCost >= 0) {
+      await updateBatch(currentBatch.id, { actualCost });
+    }
+    setIsEditingActualCost(false);
+  };
+
+  const handleCancelActualCost = () => {
+    setIsEditingActualCost(false);
+    setActualCostInput('');
   };
 
   const handleDeleteReading = async (readingId: string) => {
@@ -202,6 +226,115 @@ export default function BatchDetail() {
           </div>
         </div>
       </div>
+
+      {currentBatch.costSnapshot && (
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-6 mb-6 border border-amber-200">
+          <div className="flex items-center gap-3 mb-4">
+            <DollarSign className="text-amber-700" size={24} />
+            <h3 className="text-lg font-semibold text-amber-900">成本对比</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div className="bg-white rounded-lg p-4 shadow-sm">
+              <div className="text-sm text-gray-500 mb-1">预计成本</div>
+              <div className="text-2xl font-bold text-amber-700">
+                {formatCurrency(currentBatch.costSnapshot.totalCost)}
+              </div>
+              <div className="text-xs text-gray-400 mt-1">配方物料成本</div>
+            </div>
+            <div className="bg-white rounded-lg p-4 shadow-sm">
+              <div className="text-sm text-gray-500 mb-1 flex items-center justify-between">
+                <span>实际花费</span>
+                {!isEditingActualCost && (
+                  <button
+                    onClick={handleEditActualCost}
+                    className="text-amber-600 hover:text-amber-700"
+                  >
+                    <Edit2 size={14} />
+                  </button>
+                )}
+              </div>
+              {isEditingActualCost ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">¥</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={actualCostInput}
+                    onChange={(e) => setActualCostInput(e.target.value)}
+                    className="flex-1 px-2 py-1 border border-amber-300 rounded text-lg font-bold focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    autoFocus
+                  />
+                  <button
+                    onClick={handleSaveActualCost}
+                    className="p-1 text-green-600 hover:text-green-700"
+                  >
+                    <Save size={16} />
+                  </button>
+                  <button
+                    onClick={handleCancelActualCost}
+                    className="p-1 text-gray-400 hover:text-gray-600"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              ) : (
+                <div className="text-2xl font-bold text-green-700">
+                  {currentBatch.actualCost !== undefined
+                    ? formatCurrency(currentBatch.actualCost)
+                    : '-'
+                  }
+                </div>
+              )}
+              <div className="text-xs text-gray-400 mt-1">酿造完成后填写</div>
+            </div>
+            <div className="bg-white rounded-lg p-4 shadow-sm">
+              <div className="text-sm text-gray-500 mb-1">差异</div>
+              {currentBatch.actualCost !== undefined ? (
+                <>
+                  <div className={cn(
+                    "text-2xl font-bold",
+                    currentBatch.actualCost > currentBatch.costSnapshot.totalCost
+                      ? "text-red-600"
+                      : currentBatch.actualCost < currentBatch.costSnapshot.totalCost
+                        ? "text-green-600"
+                        : "text-gray-600"
+                  )}>
+                    {currentBatch.actualCost > currentBatch.costSnapshot.totalCost ? '+' : ''}
+                    {formatCurrency(currentBatch.actualCost - currentBatch.costSnapshot.totalCost)}
+                  </div>
+                  <div className="text-xs text-gray-400 mt-1">
+                    {currentBatch.actualCost > currentBatch.costSnapshot.totalCost
+                      ? '超支'
+                      : currentBatch.actualCost < currentBatch.costSnapshot.totalCost
+                        ? '节省'
+                        : '持平'}
+                    {' '}
+                    ({currentBatch.costSnapshot.totalCost > 0
+                      ? ((Math.abs(currentBatch.actualCost - currentBatch.costSnapshot.totalCost) / currentBatch.costSnapshot.totalCost) * 100).toFixed(1)
+                      : '0'}%)
+                  </div>
+                </>
+              ) : (
+                <div className="text-2xl font-bold text-gray-300">-</div>
+              )}
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-4 text-sm">
+            <div>
+              <span className="text-gray-500">麦芽成本: </span>
+              <span className="font-medium text-amber-700">{formatCurrency(currentBatch.costSnapshot.maltCost)}</span>
+            </div>
+            <div>
+              <span className="text-gray-500">酒花成本: </span>
+              <span className="font-medium text-green-700">{formatCurrency(currentBatch.costSnapshot.hopCost)}</span>
+            </div>
+            <div>
+              <span className="text-gray-500">酵母成本: </span>
+              <span className="font-medium text-purple-700">{formatCurrency(currentBatch.costSnapshot.yeastCost)}</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {chartData.length > 0 && (
         <div className="bg-white rounded-xl p-6 border border-gray-100 mb-6">

@@ -43,6 +43,14 @@ router.get('/:id/versions', (req: Request, res: Response) => {
   });
 });
 
+router.get('/:id/lineage', (req: Request, res: Response) => {
+  const lineage = store.getRecipeLineage(req.params.id);
+  res.json({
+    success: true,
+    data: lineage,
+  });
+});
+
 router.post('/', (req: Request, res: Response) => {
   try {
     const recipe = store.createRecipe(req.body);

@@ -96,6 +96,282 @@ export const mockRecipes: Recipe[] = [
     rating: 4.8
   },
   {
+    id: 'recipe-006',
+    name: '经典西海岸IPA v1.0.1',
+    style: 'IPA',
+    description: '微调酒花投放比例，增加Centennial干投量以增强香气。',
+    batchSize: 20,
+    originalGravity: 1.065,
+    finalGravity: 1.012,
+    abv: 6.96,
+    ibu: 68,
+    srm: 8,
+    malts: [
+      { id: 'malt-1', name: 'Pale Malt (2 Row)', weight: 4.5, color: '3', percentage: 85, pricePerKg: 30 },
+      { id: 'malt-2', name: 'Caramel Malt 20L', weight: 0.4, color: '20', percentage: 7.5, pricePerKg: 45 },
+      { id: 'malt-3', name: 'Carapils Malt', weight: 0.4, color: '1.5', percentage: 7.5, pricePerKg: 40 }
+    ],
+    hops: [
+      { id: 'hop-1', name: 'Cascade', weight: 28, alphaAcid: 7.5, time: 60, stage: 'boil', pricePerKg: 200 },
+      { id: 'hop-2', name: 'Centennial', weight: 35, alphaAcid: 10.0, time: 30, stage: 'boil', pricePerKg: 220 },
+      { id: 'hop-3', name: 'Cascade', weight: 42, alphaAcid: 7.5, time: 5, stage: 'boil', pricePerKg: 200 },
+      { id: 'hop-4', name: 'Centennial', weight: 70, alphaAcid: 10.0, time: 0, stage: 'whirlpool', pricePerKg: 220 },
+      { id: 'hop-5', name: 'Cascade', weight: 84, alphaAcid: 7.5, time: 7, stage: 'dryhop', pricePerKg: 200 }
+    ],
+    yeast: {
+      id: 'yeast-1',
+      strain: 'US-05 American Ale',
+      brand: 'Fermentis',
+      attenuation: 78,
+      temperature: [18, 22],
+      price: 35
+    },
+    mashSteps: [
+      { id: 'mash-1', temperature: 67, duration: 60, description: '蛋白休止' },
+      { id: 'mash-2', temperature: 72, duration: 30, description: '糖化休止' },
+      { id: 'mash-3', temperature: 78, duration: 10, description: '灭酶' }
+    ],
+    version: '1.0.1',
+    parentVersion: '1.0.0',
+    parentId: 'recipe-001',
+    branchName: 'main',
+    isPublic: true,
+    createdAt: daysAgo(50),
+    updatedAt: daysAgo(40),
+    createdBy: '酿酒师小王',
+    forkCount: 3,
+    rating: 4.6
+  },
+  {
+    id: 'recipe-007',
+    name: '经典西海岸IPA v1.0.2',
+    style: 'IPA',
+    description: '优化糖化温度，提升发酵度。',
+    batchSize: 20,
+    originalGravity: 1.066,
+    finalGravity: 1.011,
+    abv: 7.22,
+    ibu: 66,
+    srm: 8,
+    malts: [
+      { id: 'malt-1', name: 'Pale Malt (2 Row)', weight: 4.5, color: '3', percentage: 85, pricePerKg: 30 },
+      { id: 'malt-2', name: 'Caramel Malt 20L', weight: 0.4, color: '20', percentage: 7.5, pricePerKg: 45 },
+      { id: 'malt-3', name: 'Carapils Malt', weight: 0.4, color: '1.5', percentage: 7.5, pricePerKg: 40 }
+    ],
+    hops: [
+      { id: 'hop-1', name: 'Cascade', weight: 28, alphaAcid: 7.5, time: 60, stage: 'boil', pricePerKg: 200 },
+      { id: 'hop-2', name: 'Centennial', weight: 35, alphaAcid: 10.0, time: 30, stage: 'boil', pricePerKg: 220 },
+      { id: 'hop-3', name: 'Cascade', weight: 42, alphaAcid: 7.5, time: 5, stage: 'boil', pricePerKg: 200 },
+      { id: 'hop-4', name: 'Centennial', weight: 70, alphaAcid: 10.0, time: 0, stage: 'whirlpool', pricePerKg: 220 },
+      { id: 'hop-5', name: 'Cascade', weight: 84, alphaAcid: 7.5, time: 7, stage: 'dryhop', pricePerKg: 200 }
+    ],
+    yeast: {
+      id: 'yeast-1',
+      strain: 'US-05 American Ale',
+      brand: 'Fermentis',
+      attenuation: 80,
+      temperature: [18, 22],
+      price: 35
+    },
+    mashSteps: [
+      { id: 'mash-1', temperature: 66, duration: 70, description: '蛋白休止' },
+      { id: 'mash-2', temperature: 72, duration: 30, description: '糖化休止' },
+      { id: 'mash-3', temperature: 78, duration: 10, description: '灭酶' }
+    ],
+    version: '1.0.2',
+    parentVersion: '1.0.1',
+    parentId: 'recipe-006',
+    branchName: 'main',
+    isPublic: true,
+    createdAt: daysAgo(40),
+    updatedAt: daysAgo(35),
+    createdBy: '酿酒师小王',
+    forkCount: 2,
+    rating: 4.4
+  },
+  {
+    id: 'recipe-008',
+    name: '双倍干投IPA',
+    style: 'Double IPA',
+    description: '在经典IPA基础上大幅增加干投酒花量，打造热带水果炸弹。',
+    batchSize: 20,
+    originalGravity: 1.075,
+    finalGravity: 1.015,
+    abv: 7.87,
+    ibu: 85,
+    srm: 7,
+    malts: [
+      { id: 'malt-1', name: 'Pale Malt (2 Row)', weight: 5.2, color: '3', percentage: 88 },
+      { id: 'malt-2', name: 'Carapils Malt', weight: 0.4, color: '1.5', percentage: 7 },
+      { id: 'malt-3', name: 'Dextrin Malt', weight: 0.3, color: '2', percentage: 5 }
+    ],
+    hops: [
+      { id: 'hop-1', name: 'Magnum', weight: 20, alphaAcid: 12.0, time: 60, stage: 'boil' },
+      { id: 'hop-2', name: 'Citra', weight: 50, alphaAcid: 12.0, time: 15, stage: 'boil' },
+      { id: 'hop-3', name: 'Mosaic', weight: 60, alphaAcid: 12.5, time: 0, stage: 'whirlpool' },
+      { id: 'hop-4', name: 'Citra', weight: 100, alphaAcid: 12.0, time: 7, stage: 'dryhop' },
+      { id: 'hop-5', name: 'Mosaic', weight: 80, alphaAcid: 12.5, time: 7, stage: 'dryhop' },
+      { id: 'hop-6', name: 'Galaxy', weight: 40, alphaAcid: 14.0, time: 5, stage: 'dryhop' }
+    ],
+    yeast: {
+      id: 'yeast-1',
+      strain: 'US-05 American Ale',
+      brand: 'Fermentis',
+      attenuation: 80,
+      temperature: [19, 21]
+    },
+    mashSteps: [
+      { id: 'mash-1', temperature: 67, duration: 60, description: '糖化休止' },
+      { id: 'mash-2', temperature: 78, duration: 10, description: '灭酶' }
+    ],
+    version: '1.0.0',
+    parentVersion: '1.0.2',
+    parentId: 'recipe-007',
+    branchName: 'double-dry-hop',
+    isPublic: true,
+    createdAt: daysAgo(25),
+    updatedAt: daysAgo(20),
+    createdBy: '酿酒师小王',
+    forkCount: 8,
+    rating: 4.9
+  },
+  {
+    id: 'recipe-009',
+    name: '老王的西海岸IPA',
+    style: 'IPA',
+    description: '从经典配方fork过来，调整了麦芽比例，增加了一点慕尼黑麦芽增加麦芽香。',
+    batchSize: 20,
+    originalGravity: 1.067,
+    finalGravity: 1.014,
+    abv: 6.97,
+    ibu: 62,
+    srm: 9,
+    malts: [
+      { id: 'malt-1', name: 'Pale Malt (2 Row)', weight: 4.2, color: '3', percentage: 78 },
+      { id: 'malt-2', name: 'Munich Malt', weight: 0.6, color: '10', percentage: 11 },
+      { id: 'malt-3', name: 'Caramel Malt 20L', weight: 0.3, color: '20', percentage: 5.5 },
+      { id: 'malt-4', name: 'Carapils Malt', weight: 0.3, color: '1.5', percentage: 5.5 }
+    ],
+    hops: [
+      { id: 'hop-1', name: 'Cascade', weight: 25, alphaAcid: 7.5, time: 60, stage: 'boil' },
+      { id: 'hop-2', name: 'Centennial', weight: 30, alphaAcid: 10.0, time: 30, stage: 'boil' },
+      { id: 'hop-3', name: 'Cascade', weight: 40, alphaAcid: 7.5, time: 5, stage: 'boil' },
+      { id: 'hop-4', name: 'Centennial', weight: 60, alphaAcid: 10.0, time: 0, stage: 'whirlpool' },
+      { id: 'hop-5', name: 'Cascade', weight: 80, alphaAcid: 7.5, time: 7, stage: 'dryhop' }
+    ],
+    yeast: {
+      id: 'yeast-1',
+      strain: 'US-05 American Ale',
+      brand: 'Fermentis',
+      attenuation: 78,
+      temperature: [18, 22]
+    },
+    mashSteps: [
+      { id: 'mash-1', temperature: 67, duration: 60, description: '蛋白休止' },
+      { id: 'mash-2', temperature: 72, duration: 30, description: '糖化休止' },
+      { id: 'mash-3', temperature: 78, duration: 10, description: '灭酶' }
+    ],
+    version: '1.0.0',
+    parentVersion: '1.0.0',
+    parentId: 'recipe-001',
+    branchName: 'main',
+    isPublic: true,
+    createdAt: daysAgo(45),
+    updatedAt: daysAgo(45),
+    createdBy: '老王酿酒',
+    forkCount: 2,
+    rating: 4.2
+  },
+  {
+    id: 'recipe-010',
+    name: '老王双倍干投版',
+    style: 'Double IPA',
+    description: '在我的版本基础上尝试双倍干投，酒花香气更爆炸。',
+    batchSize: 20,
+    originalGravity: 1.072,
+    finalGravity: 1.013,
+    abv: 7.74,
+    ibu: 80,
+    srm: 8,
+    malts: [
+      { id: 'malt-1', name: 'Pale Malt (2 Row)', weight: 4.8, color: '3', percentage: 82 },
+      { id: 'malt-2', name: 'Munich Malt', weight: 0.5, color: '10', percentage: 8.5 },
+      { id: 'malt-3', name: 'Carapils Malt', weight: 0.3, color: '1.5', percentage: 5 },
+      { id: 'malt-4', name: 'Dextrin Malt', weight: 0.25, color: '2', percentage: 4.5 }
+    ],
+    hops: [
+      { id: 'hop-1', name: 'Magnum', weight: 18, alphaAcid: 12.0, time: 60, stage: 'boil' },
+      { id: 'hop-2', name: 'Citra', weight: 45, alphaAcid: 12.0, time: 15, stage: 'boil' },
+      { id: 'hop-3', name: 'Mosaic', weight: 55, alphaAcid: 12.5, time: 0, stage: 'whirlpool' },
+      { id: 'hop-4', name: 'Citra', weight: 90, alphaAcid: 12.0, time: 7, stage: 'dryhop' },
+      { id: 'hop-5', name: 'Mosaic', weight: 70, alphaAcid: 12.5, time: 7, stage: 'dryhop' }
+    ],
+    yeast: {
+      id: 'yeast-1',
+      strain: 'US-05 American Ale',
+      brand: 'Fermentis',
+      attenuation: 82,
+      temperature: [19, 21]
+    },
+    mashSteps: [
+      { id: 'mash-1', temperature: 66, duration: 65, description: '糖化休止' },
+      { id: 'mash-2', temperature: 78, duration: 10, description: '灭酶' }
+    ],
+    version: '1.0.0',
+    parentVersion: '1.0.0',
+    parentId: 'recipe-009',
+    branchName: 'ddh',
+    isPublic: true,
+    createdAt: daysAgo(20),
+    updatedAt: daysAgo(18),
+    createdBy: '老王酿酒',
+    forkCount: 1,
+    rating: 4.5
+  },
+  {
+    id: 'recipe-011',
+    name: '新手入门IPA',
+    style: 'IPA',
+    description: '从经典配方简化而来，适合新手酿造的入门级IPA。',
+    batchSize: 15,
+    originalGravity: 1.055,
+    finalGravity: 1.013,
+    abv: 5.52,
+    ibu: 45,
+    srm: 7,
+    malts: [
+      { id: 'malt-1', name: 'Pale Malt (2 Row)', weight: 3.0, color: '3', percentage: 88 },
+      { id: 'malt-2', name: 'Caramel Malt 10L', weight: 0.25, color: '10', percentage: 7 },
+      { id: 'malt-3', name: 'Carapils Malt', weight: 0.15, color: '1.5', percentage: 5 }
+    ],
+    hops: [
+      { id: 'hop-1', name: 'Cascade', weight: 20, alphaAcid: 7.5, time: 60, stage: 'boil' },
+      { id: 'hop-2', name: 'Cascade', weight: 25, alphaAcid: 7.5, time: 5, stage: 'boil' },
+      { id: 'hop-3', name: 'Cascade', weight: 35, alphaAcid: 7.5, time: 7, stage: 'dryhop' }
+    ],
+    yeast: {
+      id: 'yeast-1',
+      strain: 'US-05 American Ale',
+      brand: 'Fermentis',
+      attenuation: 76,
+      temperature: [18, 22]
+    },
+    mashSteps: [
+      { id: 'mash-1', temperature: 68, duration: 60, description: '单一糖化' },
+      { id: 'mash-2', temperature: 77, duration: 10, description: '灭酶' }
+    ],
+    version: '1.0.0',
+    parentVersion: '1.0.0',
+    parentId: 'recipe-001',
+    branchName: 'beginner',
+    isPublic: true,
+    createdAt: daysAgo(35),
+    updatedAt: daysAgo(35),
+    createdBy: '精酿入门者',
+    forkCount: 20,
+    rating: 4.6
+  },
+  {
     id: 'recipe-003',
     name: '帝国世涛',
     style: 'Imperial Stout',

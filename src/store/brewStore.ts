@@ -17,6 +17,7 @@ interface BrewState {
   currentBatch: Batch | null;
   currentTasting: Tasting | null;
   recipeVersions: Recipe[];
+  recipeLineage: Recipe[];
   comparison: RecipeComparison[];
   tastingComparison: TastingComparison[];
   loading: boolean;
@@ -25,6 +26,7 @@ interface BrewState {
   fetchRecipes: (params?: { public?: boolean; user?: string }) => Promise<void>;
   fetchRecipeById: (id: string) => Promise<void>;
   fetchRecipeVersions: (id: string) => Promise<void>;
+  fetchRecipeLineage: (id: string) => Promise<void>;
   createRecipe: (recipe: Omit<Recipe, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Recipe | null>;
   updateRecipe: (id: string, updates: Partial<Recipe>) => Promise<Recipe | null>;
   deleteRecipe: (id: string) => Promise<boolean>;
@@ -82,6 +84,7 @@ export const useBrewStore = create<BrewState>((set, _get) => ({
   currentBatch: null,
   currentTasting: null,
   recipeVersions: [],
+  recipeLineage: [],
   comparison: [],
   tastingComparison: [],
   loading: false,
@@ -127,6 +130,20 @@ export const useBrewStore = create<BrewState>((set, _get) => ({
         set({ recipeVersions: response.data, loading: false });
       } else {
         set({ error: response.error || '获取版本列表失败', loading: false });
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+    }
+  },
+
+  fetchRecipeLineage: async (id) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<Recipe[]>(`/recipes/${id}/lineage`);
+      if (response.success) {
+        set({ recipeLineage: response.data, loading: false });
+      } else {
+        set({ error: response.error || '获取配方谱系失败', loading: false });
       }
     } catch (_error) {
       set({ error: '网络错误', loading: false });
@@ -628,6 +645,8 @@ export const useBrewStore = create<BrewState>((set, _get) => ({
       currentRecipe: null,
       currentBatch: null,
       currentTasting: null,
+      recipeVersions: [],
+      recipeLineage: [],
       comparison: [],
       tastingComparison: [],
       error: null,

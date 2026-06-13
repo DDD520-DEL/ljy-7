@@ -5,12 +5,13 @@ import { useBrewStore } from '../store/brewStore.js';
 import { BATCH_STATUS_LABELS, HOP_STAGE_LABELS } from '../../shared/types.js';
 import { cn } from '../lib/utils.js';
 import { calculateTotalMaltCost, calculateTotalHopCost, calculateYeastCost, calculateMaltCost, calculateHopCost, formatCurrency } from '../utils/calculations.js';
+import RecipeLineageTree from '../components/RecipeLineageTree.js';
 
 export default function RecipeDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { currentRecipe, batches, tastings, recipeVersions, loading, error, fetchRecipeById, fetchBatches, fetchTastings, fetchRecipeVersions, createNewVersion, forkRecipe, deleteRecipe, updateRecipe } = useBrewStore();
-  const [activeTab, setActiveTab] = useState<'overview' | 'versions' | 'batches' | 'tastings'>('overview');
+  const { currentRecipe, batches, tastings, recipeVersions, recipeLineage, loading, error, fetchRecipeById, fetchBatches, fetchTastings, fetchRecipeVersions, fetchRecipeLineage, createNewVersion, forkRecipe, deleteRecipe, updateRecipe } = useBrewStore();
+  const [activeTab, setActiveTab] = useState<'overview' | 'versions' | 'lineage' | 'batches' | 'tastings'>('overview');
   const [showNewVersionModal, setShowNewVersionModal] = useState(false);
   const [branchName, setBranchName] = useState('main');
   const [versionDescription, setVersionDescription] = useState('');
@@ -21,11 +22,12 @@ export default function RecipeDetail() {
       fetchBatches(id);
       fetchTastings({ recipeId: id });
       fetchRecipeVersions(id);
+      fetchRecipeLineage(id);
     }
     return () => {
       useBrewStore.getState().clearCurrent();
     };
-  }, [id, fetchRecipeById, fetchBatches, fetchTastings, fetchRecipeVersions]);
+  }, [id, fetchRecipeById, fetchBatches, fetchTastings, fetchRecipeVersions, fetchRecipeLineage]);
 
   const handleCreateVersion = async () => {
     if (!currentRecipe || !branchName.trim()) return;
@@ -204,7 +206,7 @@ export default function RecipeDetail() {
 
       <div className="border-b border-gray-200 mb-6">
         <nav className="flex gap-8">
-          {(['overview', 'versions', 'batches', 'tastings'] as const).map(tab => (
+          {(['overview', 'versions', 'lineage', 'batches', 'tastings'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -217,6 +219,7 @@ export default function RecipeDetail() {
             >
               {tab === 'overview' ? '配方详情' :
                tab === 'versions' ? `版本历史 (${recipeVersions.length})` :
+               tab === 'lineage' ? `演变谱系 (${recipeLineage.length})` :
                tab === 'batches' ? `酿造批次 (${batches.length})` :
                `品鉴记录 (${tastings.length})`}
             </button>
@@ -398,6 +401,13 @@ export default function RecipeDetail() {
             ))}
           </div>
         </div>
+      )}
+
+      {activeTab === 'lineage' && (
+        <RecipeLineageTree
+          recipes={recipeLineage}
+          currentRecipeId={currentRecipe?.id || ''}
+        />
       )}
 
       {activeTab === 'batches' && (

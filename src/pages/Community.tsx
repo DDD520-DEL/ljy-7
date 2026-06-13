@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, TrendingUp, GitFork, Star, Beer, Eye, Filter, Flame } from 'lucide-react';
+import { Search, TrendingUp, GitFork, Star, Beer, Eye, Filter, Flame, MessageSquare } from 'lucide-react';
 import { useBrewStore } from '../store/brewStore.js';
 import { BEER_STYLES } from '../../shared/types.js';
 import type { Recipe } from '../../shared/types.js';
 import { cn } from '../lib/utils.js';
+import StarRating from '../components/StarRating.js';
 
 export default function Community() {
   const navigate = useNavigate();
@@ -173,16 +174,21 @@ export default function Community() {
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-3">
-                    {recipe.rating !== undefined && (
+                    {recipe.rating !== undefined && recipe.rating > 0 && (
                       <div className="flex items-center gap-1">
-                        <Star size={14} className="text-yellow-400 fill-yellow-400" />
-                        <span className="text-gray-600">{recipe.rating}</span>
+                        <StarRating rating={recipe.rating} readOnly size="sm" showValue />
                       </div>
                     )}
                     {recipe.forkCount !== undefined && (
                       <div className="flex items-center gap-1 text-gray-500">
                         <GitFork size={14} />
                         <span>{recipe.forkCount}</span>
+                      </div>
+                    )}
+                    {(recipe.commentCount ?? 0) > 0 && (
+                      <div className="flex items-center gap-1 text-gray-500">
+                        <MessageSquare size={14} />
+                        <span>{recipe.commentCount}</span>
                       </div>
                     )}
                   </div>

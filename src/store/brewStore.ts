@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Recipe, Batch, Tasting, FermentationReading, ParameterDeviation, RecipeComparison, TastingComparison, UserBrewStats } from '../../shared/types.js';
+import type { Recipe, Batch, Tasting, FermentationReading, ParameterDeviation, RecipeComparison, TastingComparison, UserBrewStats, RecipeComment } from '../../shared/types.js';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -21,6 +21,7 @@ interface BrewState {
   comparison: RecipeComparison[];
   tastingComparison: TastingComparison[];
   userBrewStats: UserBrewStats | null;
+  comments: RecipeComment[];
   loading: boolean;
   error: string | null;
 
@@ -57,6 +58,11 @@ interface BrewState {
   fetchTrendingRecipes: () => Promise<void>;
   fetchUserStats: (userId: string) => Promise<void>;
 
+  fetchComments: (recipeId: string) => Promise<void>;
+  createComment: (comment: Omit<RecipeComment, 'id' | 'createdAt' | 'updatedAt'>) => Promise<RecipeComment | null>;
+  deleteComment: (commentId: string) => Promise<boolean>;
+  checkUserHasBrewed: (recipeId: string, userId: string) => Promise<boolean>;
+
   clearCurrent: () => void;
   setError: (error: string | null) => void;
 }
@@ -90,6 +96,7 @@ export const useBrewStore = create<BrewState>((set, _get) => ({
   comparison: [],
   tastingComparison: [],
   userBrewStats: null,
+  comments: [],
   loading: false,
   error: null,
 
@@ -657,6 +664,79 @@ export const useBrewStore = create<BrewState>((set, _get) => ({
     }
   },
 
+  fetchComments: async (recipeId) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<RecipeComment[]>(`/community/recipes/${recipeId}/comments`);
+      if (response.success) {
+        set({ comments: response.data, loading: false });
+      } else {
+        set({ error: response.error || '获取评论失败', loading: false });
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+    }
+  },
+
+  createComment: async (comment) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<RecipeComment>(`/community/recipes/${comment.recipeId}/comments`, {
+        method: 'POST',
+        body: JSON.stringify(comment),
+      });
+      if (response.success) {
+        set((state) => ({
+          comments: [...state.comments, response.data],
+          loading: false,
+        }));
+        return response.data;
+      } else {
+        set({ error: response.error || '发表评论失败', loading: false });
+        return null;
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+      return null;
+    }
+  },
+
+  deleteComment: async (commentId) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<{ message: string }>(`/community/comments/${commentId}`, {
+        method: 'DELETE',
+      });
+      if (response.success) {
+        set((state) => ({
+          comments: state.comments.filter((c) => c.id !== commentId),
+          loading: false,
+        }));
+        return true;
+      } else {
+        set({ error: response.error || '删除评论失败', loading: false });
+        return false;
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+      return false;
+    }
+  },
+
+  checkUserHasBrewed: async (recipeId, userId) => {
+    try {
+      const response = await apiFetch<{ hasBrewed: boolean }>(
+        `/community/recipes/${recipeId}/check-brewed?userId=${userId}`
+      );
+      if (response.success) {
+        return response.data.hasBrewed;
+      }
+      return false;
+    } catch (_error) {
+      return false;
+    }
+  },
+
   clearCurrent: () => {
     set({
       currentRecipe: null,
@@ -666,6 +746,7 @@ export const useBrewStore = create<BrewState>((set, _get) => ({
       recipeLineage: [],
       comparison: [],
       tastingComparison: [],
+      comments: [],
       error: null,
     });
   },

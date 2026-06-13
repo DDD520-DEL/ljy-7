@@ -58,6 +58,7 @@ export interface Recipe {
   createdBy: string;
   forkCount?: number;
   rating?: number;
+  commentCount?: number;
 }
 
 export interface FermentationReading {
@@ -226,4 +227,16 @@ export interface UserBrewStats {
   averageScore: number;
   tastingCount: number;
   topStyle: string;
+}
+
+export interface RecipeComment {
+  id: string;
+  recipeId: string;
+  userId: string;
+  userName: string;
+  rating: number;
+  content: string;
+  hasBrewed: boolean;
+  createdAt: string;
+  updatedAt: string;
 }

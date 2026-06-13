@@ -1,18 +1,20 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, GitBranch, GitFork, Plus, Thermometer, Droplets, Scale, Leaf, Calendar, TrendingUp, Clock, Star, Eye, EyeOff, Edit2, Trash2, GitCompare, DollarSign, GitCompareArrows } from 'lucide-react';
+import { ArrowLeft, GitBranch, GitFork, Plus, Thermometer, Droplets, Scale, Leaf, Calendar, TrendingUp, Clock, Star, Eye, EyeOff, Edit2, Trash2, GitCompare, DollarSign, GitCompareArrows, MessageSquare } from 'lucide-react';
 import { useBrewStore } from '../store/brewStore.js';
 import { BATCH_STATUS_LABELS, HOP_STAGE_LABELS } from '../../shared/types.js';
 import { cn } from '../lib/utils.js';
 import { calculateTotalMaltCost, calculateTotalHopCost, calculateYeastCost, calculateMaltCost, calculateHopCost, formatCurrency } from '../utils/calculations.js';
 import RecipeLineageTree from '../components/RecipeLineageTree.js';
 import BatchCompareChart from '../components/BatchCompareChart.js';
+import CommentSection from '../components/CommentSection.js';
+import StarRating from '../components/StarRating.js';
 
 export default function RecipeDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { currentRecipe, batches, tastings, recipeVersions, recipeLineage, loading, error, fetchRecipeById, fetchBatches, fetchTastings, fetchRecipeVersions, fetchRecipeLineage, createNewVersion, forkRecipe, deleteRecipe, updateRecipe } = useBrewStore();
-  const [activeTab, setActiveTab] = useState<'overview' | 'versions' | 'lineage' | 'batches' | 'tastings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'versions' | 'lineage' | 'batches' | 'tastings' | 'comments'>('overview');
   const [showNewVersionModal, setShowNewVersionModal] = useState(false);
   const [branchName, setBranchName] = useState('main');
   const [versionDescription, setVersionDescription] = useState('');
@@ -97,7 +99,7 @@ export default function RecipeDetail() {
         </button>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <div className="flex items-center gap-3 mb-2">
+            <div className="flex flex-wrap items-center gap-3 mb-2">
               <h1 className="text-3xl font-bold text-amber-900">{currentRecipe.name}</h1>
               <span className="px-3 py-1 bg-amber-100 text-amber-700 text-sm font-medium rounded-full">
                 {currentRecipe.style}
@@ -110,6 +112,16 @@ export default function RecipeDetail() {
                   <GitBranch size={14} />
                   {currentRecipe.branchName}
                 </span>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-4 mb-2">
+              {currentRecipe.rating !== undefined && currentRecipe.rating > 0 && (
+                <div className="flex items-center gap-2">
+                  <StarRating rating={currentRecipe.rating} readOnly size="sm" showValue />
+                  <span className="text-sm text-gray-500">
+                    ({currentRecipe.commentCount || 0} 条评价)
+                  </span>
+                </div>
               )}
             </div>
             <p className="text-gray-600">{currentRecipe.description}</p>
@@ -223,8 +235,8 @@ export default function RecipeDetail() {
       )}
 
       <div className="border-b border-gray-200 mb-6">
-        <nav className="flex gap-8">
-          {(['overview', 'versions', 'lineage', 'batches', 'tastings'] as const).map(tab => (
+        <nav className="flex flex-wrap gap-8">
+          {(['overview', 'versions', 'lineage', 'batches', 'tastings', 'comments'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -239,7 +251,8 @@ export default function RecipeDetail() {
                tab === 'versions' ? `版本历史 (${recipeVersions.length})` :
                tab === 'lineage' ? `演变谱系 (${recipeLineage.length})` :
                tab === 'batches' ? `酿造批次 (${batches.length})` :
-               `品鉴记录 (${tastings.length})`}
+               tab === 'tastings' ? `品鉴记录 (${tastings.length})` :
+               `评论与评分`}
             </button>
           ))}
         </nav>
@@ -625,6 +638,14 @@ export default function RecipeDetail() {
             </div>
           )}
         </div>
+      )}
+
+      {activeTab === 'comments' && currentRecipe && (
+        <CommentSection
+          recipeId={currentRecipe.id}
+          currentUserId="currentUser"
+          currentUserName="我"
+        />
       )}
 
       {showNewVersionModal && (

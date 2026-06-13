@@ -15,6 +15,7 @@ import batchRoutes from './routes/batches.js'
 import tastingRoutes from './routes/tastings.js'
 import communityRoutes from './routes/community.js'
 import statsRoutes from './routes/stats.js'
+import inventoryRoutes from './routes/inventory.js'
 
 dotenv.config()
 
@@ -30,6 +31,7 @@ app.use('/api/batches', batchRoutes)
 app.use('/api/tastings', tastingRoutes)
 app.use('/api/community', communityRoutes)
 app.use('/api/stats', statsRoutes)
+app.use('/api/inventory', inventoryRoutes)
 
 /**
  * health

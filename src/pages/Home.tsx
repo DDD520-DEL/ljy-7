@@ -1,8 +1,8 @@
 import { useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Beer, ListTodo, Star, Users, TrendingUp, Clock, AlertCircle, CheckCircle, Plus, AlertTriangle, X } from 'lucide-react';
+import { Beer, ListTodo, Star, Users, TrendingUp, Clock, AlertCircle, CheckCircle, Plus, AlertTriangle, X, Package, Scale, Leaf, Beaker } from 'lucide-react';
 import { useBrewStore } from '../store/brewStore.js';
-import { BATCH_STATUS_LABELS } from '../../shared/types.js';
+import { BATCH_STATUS_LABELS, INGREDIENT_TYPE_LABELS, IngredientType, InventoryItem } from '../../shared/types.js';
 import { formatDate, formatABV, getDaysSince, getAnomalousBatches, formatGravity } from '../utils/calculations.js';
 import { cn } from '../lib/utils.js';
 import BrewCalendar from '../components/BrewCalendar.js';
@@ -25,14 +25,15 @@ const statusIcons: Record<string, React.ReactNode> = {
 };
 
 export default function Home() {
-  const { recipes, batches, calendarBatches, tastings, userBrewStats, loading, fetchRecipes, fetchBatches, fetchBatchesByDateRange, fetchTastings, fetchUserStats } = useBrewStore();
+  const { recipes, batches, calendarBatches, tastings, userBrewStats, inventory, loading, fetchRecipes, fetchBatches, fetchBatchesByDateRange, fetchTastings, fetchUserStats, fetchInventory } = useBrewStore();
 
   useEffect(() => {
     fetchRecipes();
     fetchBatches();
     fetchTastings();
     fetchUserStats('brewer1');
-  }, [fetchRecipes, fetchBatches, fetchTastings, fetchUserStats]);
+    fetchInventory({ lowStock: true });
+  }, [fetchRecipes, fetchBatches, fetchTastings, fetchUserStats, fetchInventory]);
 
   const loadCalendarBatches = useCallback((year: number, month: number) => {
     const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
@@ -99,6 +100,87 @@ export default function Home() {
             个人酿造统计
           </h2>
           <BrewStatsPanel stats={userBrewStats} />
+        </div>
+      )}
+
+      {inventory.length > 0 && (
+        <div className="bg-gradient-to-r from-orange-600 to-amber-600 rounded-2xl shadow-lg overflow-hidden">
+          <div className="p-6">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                  <Package size={28} className="text-white" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-white">原料补货提醒</h2>
+                  <p className="text-orange-100 mt-1">
+                    有 <span className="font-bold text-white">{inventory.length}</span> 项原料库存低于警戒值，建议及时补货！
+                  </p>
+                </div>
+              </div>
+              <Link
+                to="/inventory"
+                className="bg-white text-orange-700 px-4 py-2 rounded-lg font-medium hover:bg-orange-50 transition-colors text-sm flex items-center gap-1"
+              >
+                管理库存 →
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {inventory.slice(0, 6).map((item: InventoryItem) => {
+                const typeIcon = item.type === 'malt' ? <Scale size={14} /> : item.type === 'hop' ? <Leaf size={14} /> : <Beaker size={14} />;
+                const isOut = item.currentStock === 0;
+                return (
+                  <Link
+                    key={item.id}
+                    to="/inventory"
+                    className={cn(
+                      "block rounded-xl p-3 transition-colors border",
+                      isOut
+                        ? "bg-red-500/30 border-white/30 hover:bg-red-500/40"
+                        : "bg-white/10 border-white/20 hover:bg-white/20"
+                    )}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-white/80 shrink-0">{typeIcon}</span>
+                        <span className="font-medium text-white truncate">{item.name}</span>
+                      </div>
+                      <span className="text-xs text-white/60 shrink-0 ml-2">
+                        {INGREDIENT_TYPE_LABELS[item.type as IngredientType]}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-baseline gap-1">
+                        <span className={cn(
+                          "text-lg font-bold",
+                          isOut ? "text-red-200" : "text-white"
+                        )}>
+                          {item.currentStock}
+                        </span>
+                        <span className="text-xs text-white/60">{item.unit}</span>
+                      </div>
+                      <div className="text-xs text-white/70">
+                        警戒: {item.minStock}{item.unit}
+                      </div>
+                    </div>
+                    {isOut && (
+                      <div className="mt-1 text-xs text-red-200 font-medium flex items-center gap-1">
+                        <AlertTriangle size={12} /> 缺货
+                      </div>
+                    )}
+                  </Link>
+                );
+              })}
+              {inventory.length > 6 && (
+                <Link
+                  to="/inventory"
+                  className="flex items-center justify-center rounded-xl p-3 bg-white/5 border border-white/20 hover:bg-white/10 transition-colors text-white/80 text-sm"
+                >
+                  还有 {inventory.length - 6} 项 →
+                </Link>
+              )}
+            </div>
+          </div>
         </div>
       )}
 

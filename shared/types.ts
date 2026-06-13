@@ -241,3 +241,49 @@ export interface RecipeComment {
   createdAt: string;
   updatedAt: string;
 }
+
+export type IngredientType = 'malt' | 'hop' | 'yeast';
+
+export const INGREDIENT_TYPE_LABELS: Record<IngredientType, string> = {
+  malt: '麦芽',
+  hop: '酒花',
+  yeast: '酵母',
+};
+
+export const INGREDIENT_UNIT_LABELS: Record<IngredientType, string> = {
+  malt: 'kg',
+  hop: 'g',
+  yeast: '份',
+};
+
+export interface InventoryItem {
+  id: string;
+  type: IngredientType;
+  name: string;
+  currentStock: number;
+  minStock: number;
+  unit: string;
+  updatedAt: string;
+  note?: string;
+}
+
+export interface IngredientShortage {
+  type: IngredientType;
+  name: string;
+  required: number;
+  available: number;
+  missing: number;
+  unit: string;
+}
+
+export interface InventoryCheckResult {
+  sufficient: boolean;
+  shortages: IngredientShortage[];
+  warnings: Array<{
+    type: IngredientType;
+    name: string;
+    current: number;
+    minStock: number;
+    unit: string;
+  }>;
+}

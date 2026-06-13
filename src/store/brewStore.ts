@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Recipe, Batch, Tasting, FermentationReading, ParameterDeviation, RecipeComparison, TastingComparison, UserBrewStats, RecipeComment } from '../../shared/types.js';
+import type { Recipe, Batch, Tasting, FermentationReading, ParameterDeviation, RecipeComparison, TastingComparison, UserBrewStats, RecipeComment, InventoryItem, InventoryCheckResult, IngredientShortage, IngredientType } from '../../shared/types.js';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -13,6 +13,8 @@ interface BrewState {
   batches: Batch[];
   calendarBatches: Batch[];
   tastings: Tasting[];
+  inventory: InventoryItem[];
+  inventoryCheck: InventoryCheckResult | null;
   currentRecipe: Recipe | null;
   currentBatch: Batch | null;
   currentTasting: Tasting | null;
@@ -24,6 +26,8 @@ interface BrewState {
   comments: RecipeComment[];
   loading: boolean;
   error: string | null;
+  inventoryShortages: IngredientShortage[];
+  inventoryWarnings: InventoryCheckResult['warnings'];
 
   fetchRecipes: (params?: { public?: boolean; user?: string }) => Promise<void>;
   fetchRecipeById: (id: string) => Promise<void>;
@@ -63,6 +67,14 @@ interface BrewState {
   deleteComment: (commentId: string) => Promise<boolean>;
   checkUserHasBrewed: (recipeId: string, userId: string) => Promise<boolean>;
 
+  fetchInventory: (params?: { type?: IngredientType; lowStock?: boolean }) => Promise<void>;
+  fetchInventoryCheck: (recipeId: string) => Promise<InventoryCheckResult | null>;
+  createInventoryItem: (item: Omit<InventoryItem, 'id' | 'updatedAt'>) => Promise<InventoryItem | null>;
+  updateInventoryItem: (id: string, updates: Partial<Omit<InventoryItem, 'id'>>) => Promise<InventoryItem | null>;
+  deleteInventoryItem: (id: string) => Promise<boolean>;
+  restockInventory: (id: string, amount: number) => Promise<InventoryItem | null>;
+  clearInventoryErrors: () => void;
+
   clearCurrent: () => void;
   setError: (error: string | null) => void;
 }
@@ -88,6 +100,8 @@ export const useBrewStore = create<BrewState>((set, _get) => ({
   batches: [],
   calendarBatches: [],
   tastings: [],
+  inventory: [],
+  inventoryCheck: null,
   currentRecipe: null,
   currentBatch: null,
   currentTasting: null,
@@ -99,6 +113,8 @@ export const useBrewStore = create<BrewState>((set, _get) => ({
   comments: [],
   loading: false,
   error: null,
+  inventoryShortages: [],
+  inventoryWarnings: [],
 
   fetchRecipes: async (params) => {
     set({ loading: true, error: null });
@@ -334,20 +350,29 @@ export const useBrewStore = create<BrewState>((set, _get) => ({
   },
 
   createBatchFromRecipe: async (recipeId, batchData) => {
-    set({ loading: true, error: null });
+    set({ loading: true, error: null, inventoryShortages: [], inventoryWarnings: [] });
     try {
-      const response = await apiFetch<Batch>(`/batches/from-recipe/${recipeId}`, {
+      const response = await fetch(`${API_BASE}/batches/from-recipe/${recipeId}`, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify(batchData),
       });
-      if (response.success) {
+      const result = await response.json();
+      if (result.success) {
         set((state) => ({
-          batches: [...state.batches, response.data],
+          batches: [...state.batches, result.data],
+          inventoryWarnings: result.warnings || [],
           loading: false,
         }));
-        return response.data;
+        return result.data as Batch;
       } else {
-        set({ error: response.error || '创建批次失败', loading: false });
+        if (result.shortages) {
+          set({ inventoryShortages: result.shortages, inventoryWarnings: result.warnings || [], error: result.error || '创建批次失败', loading: false });
+        } else {
+          set({ error: result.error || '创建批次失败', loading: false });
+        }
         return null;
       }
     } catch (_error) {
@@ -735,6 +760,136 @@ export const useBrewStore = create<BrewState>((set, _get) => ({
     } catch (_error) {
       return false;
     }
+  },
+
+  fetchInventory: async (params) => {
+    set({ loading: true, error: null });
+    try {
+      const query = new URLSearchParams();
+      if (params?.type) query.append('type', params.type);
+      if (params?.lowStock) query.append('lowStock', 'true');
+      const queryString = query.toString();
+      const response = await apiFetch<InventoryItem[]>(`/inventory${queryString ? `?${queryString}` : ''}`);
+      if (response.success) {
+        set({ inventory: response.data, loading: false });
+      } else {
+        set({ error: response.error || '获取库存列表失败', loading: false });
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+    }
+  },
+
+  fetchInventoryCheck: async (recipeId) => {
+    set({ loading: true, error: null, inventoryShortages: [], inventoryWarnings: [], inventoryCheck: null });
+    try {
+      const response = await apiFetch<InventoryCheckResult>(`/inventory/check/${recipeId}`);
+      if (response.success) {
+        set({ inventoryCheck: response.data, inventoryShortages: response.data.shortages, inventoryWarnings: response.data.warnings, loading: false });
+        return response.data;
+      } else {
+        set({ error: response.error || '库存检查失败', loading: false });
+        return null;
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+      return null;
+    }
+  },
+
+  createInventoryItem: async (item) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<InventoryItem>('/inventory', {
+        method: 'POST',
+        body: JSON.stringify(item),
+      });
+      if (response.success) {
+        set((state) => ({
+          inventory: [...state.inventory, response.data],
+          loading: false,
+        }));
+        return response.data;
+      } else {
+        set({ error: response.error || '创建库存项失败', loading: false });
+        return null;
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+      return null;
+    }
+  },
+
+  updateInventoryItem: async (id, updates) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<InventoryItem>(`/inventory/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+      if (response.success) {
+        set((state) => ({
+          inventory: state.inventory.map((i) => (i.id === id ? response.data : i)),
+          loading: false,
+        }));
+        return response.data;
+      } else {
+        set({ error: response.error || '更新库存项失败', loading: false });
+        return null;
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+      return null;
+    }
+  },
+
+  deleteInventoryItem: async (id) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<{ message: string }>(`/inventory/${id}`, {
+        method: 'DELETE',
+      });
+      if (response.success) {
+        set((state) => ({
+          inventory: state.inventory.filter((i) => i.id !== id),
+          loading: false,
+        }));
+        return true;
+      } else {
+        set({ error: response.error || '删除库存项失败', loading: false });
+        return false;
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+      return false;
+    }
+  },
+
+  restockInventory: async (id, amount) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<InventoryItem>(`/inventory/${id}/restock`, {
+        method: 'POST',
+        body: JSON.stringify({ amount }),
+      });
+      if (response.success) {
+        set((state) => ({
+          inventory: state.inventory.map((i) => (i.id === id ? response.data : i)),
+          loading: false,
+        }));
+        return response.data;
+      } else {
+        set({ error: response.error || '补货失败', loading: false });
+        return null;
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+      return null;
+    }
+  },
+
+  clearInventoryErrors: () => {
+    set({ inventoryShortages: [], inventoryWarnings: [], inventoryCheck: null, error: null });
   },
 
   clearCurrent: () => {

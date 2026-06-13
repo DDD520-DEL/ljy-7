@@ -37,16 +37,25 @@ router.get('/:id', (req: Request, res: Response) => {
 });
 
 router.post('/from-recipe/:recipeId', (req: Request, res: Response) => {
-  const batch = store.createBatchFromRecipe(req.params.recipeId, req.body);
-  if (!batch) {
+  const result = store.createBatchFromRecipeWithInventory(req.params.recipeId, req.body);
+  if (!result.success) {
+    if (result.check) {
+      return res.status(400).json({
+        success: false,
+        error: result.error || '原料库存不足',
+        shortages: result.check.shortages,
+        warnings: result.check.warnings,
+      });
+    }
     return res.status(404).json({
       success: false,
-      error: '配方不存在',
+      error: result.error || '配方不存在',
     });
   }
   res.status(201).json({
     success: true,
-    data: batch,
+    data: result.batch,
+    warnings: result.check?.warnings || [],
   });
 });
 

@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, GitBranch, GitFork, Plus, Thermometer, Droplets, Scale, Leaf, Calendar, TrendingUp, Clock, Star, Eye, EyeOff, Edit2, Trash2, GitCompare, DollarSign } from 'lucide-react';
+import { ArrowLeft, GitBranch, GitFork, Plus, Thermometer, Droplets, Scale, Leaf, Calendar, TrendingUp, Clock, Star, Eye, EyeOff, Edit2, Trash2, GitCompare, DollarSign, GitCompareArrows } from 'lucide-react';
 import { useBrewStore } from '../store/brewStore.js';
 import { BATCH_STATUS_LABELS, HOP_STAGE_LABELS } from '../../shared/types.js';
 import { cn } from '../lib/utils.js';
 import { calculateTotalMaltCost, calculateTotalHopCost, calculateYeastCost, calculateMaltCost, calculateHopCost, formatCurrency } from '../utils/calculations.js';
 import RecipeLineageTree from '../components/RecipeLineageTree.js';
+import BatchCompareChart from '../components/BatchCompareChart.js';
 
 export default function RecipeDetail() {
   const { id } = useParams<{ id: string }>();
@@ -15,6 +16,23 @@ export default function RecipeDetail() {
   const [showNewVersionModal, setShowNewVersionModal] = useState(false);
   const [branchName, setBranchName] = useState('main');
   const [versionDescription, setVersionDescription] = useState('');
+  const [selectedBatchIds, setSelectedBatchIds] = useState<Set<string>>(new Set());
+
+  const toggleBatchSelection = (batchId: string) => {
+    setSelectedBatchIds(prev => {
+      const next = new Set(prev);
+      if (next.has(batchId)) {
+        next.delete(batchId);
+      } else {
+        next.add(batchId);
+      }
+      return next;
+    });
+  };
+
+  const selectedBatches = useMemo(() => {
+    return batches.filter(b => selectedBatchIds.has(b.id) && b.readings.length > 0);
+  }, [batches, selectedBatchIds]);
 
   useEffect(() => {
     if (id) {
@@ -429,53 +447,112 @@ export default function RecipeDetail() {
               <p className="text-gray-400 mb-6">点击上方按钮开始您的第一次酿造</p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {batches.map(batch => (
-                <div
-                  key={batch.id}
-                  className="bg-white rounded-xl p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
-                  onClick={() => navigate(`/batches/${batch.id}`)}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center gap-3">
-                        <h4 className="text-lg font-semibold text-gray-900">{batch.name}</h4>
-                        <span className={cn(
-                          "px-3 py-1 rounded-full text-sm font-medium",
-                          batch.status === 'completed' ? 'bg-green-100 text-green-700' :
-                          batch.status === 'fermenting' ? 'bg-amber-100 text-amber-700' :
-                          batch.status === 'conditioning' ? 'bg-blue-100 text-blue-700' :
-                          'bg-gray-100 text-gray-700'
-                        )}>
-                          {BATCH_STATUS_LABELS[batch.status]}
-                        </span>
+            <>
+              <div className="space-y-4">
+                {batches.map(batch => (
+                  <div
+                    key={batch.id}
+                    className={cn(
+                      "bg-white rounded-xl p-6 border transition-shadow",
+                      selectedBatchIds.has(batch.id)
+                        ? "border-amber-400 shadow-md ring-1 ring-amber-200"
+                        : "border-gray-100 hover:shadow-md cursor-pointer"
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <input
+                          type="checkbox"
+                          checked={selectedBatchIds.has(batch.id)}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            toggleBatchSelection(batch.id);
+                          }}
+                          disabled={batch.readings.length === 0}
+                          title={batch.readings.length === 0 ? '该批次暂无发酵读数' : '选择此批次进行对比'}
+                          className="w-4 h-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500 shrink-0"
+                        />
+                        <div
+                          className="flex-1 min-w-0 cursor-pointer"
+                          onClick={() => navigate(`/batches/${batch.id}`)}
+                        >
+                          <div className="flex items-center gap-3">
+                            <h4 className="text-lg font-semibold text-gray-900">{batch.name}</h4>
+                            <span className={cn(
+                              "px-3 py-1 rounded-full text-sm font-medium",
+                              batch.status === 'completed' ? 'bg-green-100 text-green-700' :
+                              batch.status === 'fermenting' ? 'bg-amber-100 text-amber-700' :
+                              batch.status === 'conditioning' ? 'bg-blue-100 text-blue-700' :
+                              'bg-gray-100 text-gray-700'
+                            )}>
+                              {BATCH_STATUS_LABELS[batch.status]}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                            <span className="flex items-center gap-1">
+                              <Calendar size={14} />
+                              {batch.brewDate}
+                            </span>
+                            <span>配方版本: v{batch.recipeVersion}</span>
+                            {batch.originalGravityActual && (
+                              <span>OG: {batch.originalGravityActual}</span>
+                            )}
+                            {batch.finalGravityActual && (
+                              <span>FG: {batch.finalGravityActual}</span>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
-                        <span className="flex items-center gap-1">
-                          <Calendar size={14} />
-                          {batch.brewDate}
-                        </span>
-                        <span>配方版本: v{batch.recipeVersion}</span>
-                        {batch.originalGravityActual && (
-                          <span>OG: {batch.originalGravityActual}</span>
-                        )}
-                        {batch.finalGravityActual && (
-                          <span>FG: {batch.finalGravityActual}</span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm text-gray-500">
-                        {batch.readings.length} 条发酵记录
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {batch.deviations.length} 个参数偏差
+                      <div className="text-right shrink-0 ml-4">
+                        <div className="text-sm text-gray-500">
+                          {batch.readings.length} 条发酵记录
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {batch.deviations.length} 个参数偏差
+                        </div>
                       </div>
                     </div>
                   </div>
+                ))}
+              </div>
+
+              {selectedBatchIds.size > 0 && (
+                <div className="mt-6 bg-amber-50 rounded-xl p-4 border border-amber-200">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-amber-800">
+                      <GitCompareArrows size={18} />
+                      <span className="text-sm font-medium">
+                        已选择 {selectedBatchIds.size} 个批次{selectedBatches.length < selectedBatchIds.size && ` (${selectedBatchIds.size - selectedBatches.length} 个无读数)`}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => setSelectedBatchIds(new Set())}
+                      className="text-sm text-amber-600 hover:text-amber-800 font-medium transition-colors"
+                    >
+                      清除选择
+                    </button>
+                  </div>
                 </div>
-              ))}
-            </div>
+              )}
+
+              {selectedBatches.length >= 2 && (
+                <div className="mt-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <GitCompareArrows className="text-amber-600" size={20} />
+                    <h3 className="text-lg font-semibold text-gray-900">批次发酵曲线对比</h3>
+                    <span className="text-sm text-gray-500">({selectedBatches.length} 个批次)</span>
+                  </div>
+                  <BatchCompareChart batches={selectedBatches} />
+                </div>
+              )}
+
+              {selectedBatches.length === 1 && (
+                <div className="mt-6 flex items-center justify-center py-12 bg-white rounded-xl border border-gray-100 text-gray-400">
+                  <GitCompareArrows size={24} className="mr-2 opacity-50" />
+                  <span>请选择至少 2 个有发酵读数的批次进行对比</span>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

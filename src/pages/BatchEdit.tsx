@@ -87,10 +87,10 @@ export default function BatchEdit() {
       setLocalShortages(inventoryShortages);
       setLocalWarnings(inventoryWarnings);
       setShowShortageModal(true);
-    } else if (inventoryWarnings.length > 0 && error && !error.includes('不足')) {
+    } else if (inventoryWarnings.length > 0) {
       setLocalWarnings(inventoryWarnings);
     }
-  }, [inventoryShortages, inventoryWarnings, error]);
+  }, [inventoryShortages, inventoryWarnings]);
 
   const selectedRecipe = recipes.find(r => r.id === formData.recipeId);
 
@@ -107,11 +107,11 @@ export default function BatchEdit() {
       clearInventoryErrors();
       const result = await createBatchFromRecipe(formData.recipeId, formData);
       if (result) {
-        if (inventoryWarnings.length > 0) {
-          setLocalWarnings(inventoryWarnings);
+        if (result.warnings.length > 0) {
+          setLocalWarnings(result.warnings);
           setShowWarningsAfterCreate(true);
         } else {
-          navigate(`/batches/${result.id}`);
+          navigate(`/batches/${result.batch.id}`);
         }
       }
     }

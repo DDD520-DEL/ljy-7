@@ -43,7 +43,7 @@ interface BrewState {
   fetchBatches: (recipeId?: string) => Promise<void>;
   fetchBatchesByDateRange: (startDate: string, endDate: string) => Promise<void>;
   fetchBatchById: (id: string) => Promise<void>;
-  createBatchFromRecipe: (recipeId: string, batchData: Omit<Batch, 'id' | 'recipeId' | 'recipeVersion' | 'createdAt' | 'readings' | 'deviations'>) => Promise<Batch | null>;
+  createBatchFromRecipe: (recipeId: string, batchData: Omit<Batch, 'id' | 'recipeId' | 'recipeVersion' | 'createdAt' | 'readings' | 'deviations'>) => Promise<{ batch: Batch; warnings: InventoryCheckResult['warnings'] } | null>;
   updateBatch: (id: string, updates: Partial<Batch>) => Promise<Batch | null>;
   deleteBatch: (id: string) => Promise<boolean>;
   addReading: (batchId: string, reading: Omit<FermentationReading, 'id'>) => Promise<Batch | null>;
@@ -361,12 +361,13 @@ export const useBrewStore = create<BrewState>((set, _get) => ({
       });
       const result = await response.json();
       if (result.success) {
+        const warnings = result.warnings || [];
         set((state) => ({
           batches: [...state.batches, result.data],
-          inventoryWarnings: result.warnings || [],
+          inventoryWarnings: warnings,
           loading: false,
         }));
-        return result.data as Batch;
+        return { batch: result.data as Batch, warnings };
       } else {
         if (result.shortages) {
           set({ inventoryShortages: result.shortages, inventoryWarnings: result.warnings || [], error: result.error || '创建批次失败', loading: false });

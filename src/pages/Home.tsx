@@ -6,6 +6,7 @@ import { BATCH_STATUS_LABELS } from '../../shared/types.js';
 import { formatDate, formatABV, getDaysSince, getAnomalousBatches, formatGravity } from '../utils/calculations.js';
 import { cn } from '../lib/utils.js';
 import BrewCalendar from '../components/BrewCalendar.js';
+import BrewStatsPanel from '../components/BrewStatsPanel.js';
 
 const statusColors: Record<string, string> = {
   planning: 'bg-gray-100 text-gray-700',
@@ -24,13 +25,14 @@ const statusIcons: Record<string, React.ReactNode> = {
 };
 
 export default function Home() {
-  const { recipes, batches, calendarBatches, tastings, loading, fetchRecipes, fetchBatches, fetchBatchesByDateRange, fetchTastings } = useBrewStore();
+  const { recipes, batches, calendarBatches, tastings, userBrewStats, loading, fetchRecipes, fetchBatches, fetchBatchesByDateRange, fetchTastings, fetchUserStats } = useBrewStore();
 
   useEffect(() => {
     fetchRecipes();
     fetchBatches();
     fetchTastings();
-  }, [fetchRecipes, fetchBatches, fetchTastings]);
+    fetchUserStats('brewer1');
+  }, [fetchRecipes, fetchBatches, fetchTastings, fetchUserStats]);
 
   const loadCalendarBatches = useCallback((year: number, month: number) => {
     const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
@@ -89,6 +91,16 @@ export default function Home() {
           </Link>
         </div>
       </div>
+
+      {userBrewStats && (
+        <div className="bg-white rounded-2xl p-6 shadow-sm">
+          <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-amber-600" />
+            个人酿造统计
+          </h2>
+          <BrewStatsPanel stats={userBrewStats} />
+        </div>
+      )}
 
       {anomalousBatches.length > 0 && (
         <div className="bg-gradient-to-r from-red-600 to-red-700 rounded-2xl shadow-lg overflow-hidden animate-pulse">

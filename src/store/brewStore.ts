@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Recipe, Batch, Tasting, FermentationReading, ParameterDeviation, RecipeComparison, TastingComparison } from '../../shared/types.js';
+import type { Recipe, Batch, Tasting, FermentationReading, ParameterDeviation, RecipeComparison, TastingComparison, UserBrewStats } from '../../shared/types.js';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -20,6 +20,7 @@ interface BrewState {
   recipeLineage: Recipe[];
   comparison: RecipeComparison[];
   tastingComparison: TastingComparison[];
+  userBrewStats: UserBrewStats | null;
   loading: boolean;
   error: string | null;
 
@@ -54,6 +55,7 @@ interface BrewState {
 
   fetchPublicRecipes: (params?: { sort?: string; style?: string; search?: string }) => Promise<void>;
   fetchTrendingRecipes: () => Promise<void>;
+  fetchUserStats: (userId: string) => Promise<void>;
 
   clearCurrent: () => void;
   setError: (error: string | null) => void;
@@ -87,6 +89,7 @@ export const useBrewStore = create<BrewState>((set, _get) => ({
   recipeLineage: [],
   comparison: [],
   tastingComparison: [],
+  userBrewStats: null,
   loading: false,
   error: null,
 
@@ -635,6 +638,20 @@ export const useBrewStore = create<BrewState>((set, _get) => ({
         return;
       }
       set({ error: response.error || '获取热门配方失败', loading: false });
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+    }
+  },
+
+  fetchUserStats: async (userId) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<UserBrewStats>(`/stats/${userId}`);
+      if (response.success) {
+        set({ userBrewStats: response.data, loading: false });
+      } else {
+        set({ error: response.error || '获取统计数据失败', loading: false });
+      }
     } catch (_error) {
       set({ error: '网络错误', loading: false });
     }

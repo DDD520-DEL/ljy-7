@@ -203,3 +203,27 @@ export const BEER_STYLES = [
   'Kölsch',
   'Bock'
 ];
+
+export interface StyleDistribution {
+  style: string;
+  count: number;
+  percentage: number;
+}
+
+export interface ScoreTrendItem {
+  date: string;
+  score: number;
+  recipeName?: string;
+}
+
+export interface UserBrewStats {
+  totalBatches: number;
+  totalVolume: number;
+  completedBatches: number;
+  averageVolume: number;
+  styleDistribution: StyleDistribution[];
+  scoreTrend: ScoreTrendItem[];
+  averageScore: number;
+  tastingCount: number;
+  topStyle: string;
+}

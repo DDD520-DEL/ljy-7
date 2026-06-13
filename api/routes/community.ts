@@ -95,13 +95,14 @@ router.post('/recipes/:recipeId/comments', (req: Request, res: Response) => {
   }
 
   try {
+    const hasBrewed = store.hasUserBrewedRecipe(recipeId, userId);
     const comment = store.addRecipeComment({
       recipeId,
       userId,
       userName,
       rating,
       content,
-      hasBrewed: hasBrewed || false,
+      hasBrewed,
     });
     res.json({
       success: true,

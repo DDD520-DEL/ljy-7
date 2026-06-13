@@ -102,6 +102,7 @@ export interface Batch {
   readings: FermentationReading[];
   notes: string;
   createdAt: string;
+  createdBy: string;
   costSnapshot?: CostSnapshot;
   actualCost?: number;
 }

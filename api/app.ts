@@ -20,6 +20,7 @@ import equipmentRoutes from './routes/equipment.js'
 import waterRoutes from './routes/water.js'
 import brewPlanRoutes from './routes/brewPlans.js'
 import procurementRoutes from './routes/procurements.js'
+import plazaRoutes from './routes/plaza.js'
 
 dotenv.config()
 
@@ -40,6 +41,7 @@ app.use('/api/equipment', equipmentRoutes)
 app.use('/api/water', waterRoutes)
 app.use('/api/brew-plans', brewPlanRoutes)
 app.use('/api/procurements', procurementRoutes)
+app.use('/api/plaza', plazaRoutes)
 
 /**
  * health

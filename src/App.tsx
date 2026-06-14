@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from "react-router-dom";
-import { Beer, Home as HomeIcon, ListTodo, Star, Users, Package, Settings, Droplets, ShoppingCart } from "lucide-react";
+import { Beer, Home as HomeIcon, ListTodo, Star, Users, Package, Settings, Droplets, ShoppingCart, Flame } from "lucide-react";
 import Home from "@/pages/Home";
 import Recipes from "@/pages/Recipes";
 import RecipeDetail from "@/pages/RecipeDetail";
@@ -12,6 +12,8 @@ import TraceCodeLookup from "@/pages/TraceCodeLookup";
 import Tastings from "@/pages/Tastings";
 import TastingEdit from "@/pages/TastingEdit";
 import Community from "@/pages/Community";
+import BrewPlaza from "@/pages/BrewPlaza";
+import BrewPostEdit from "@/pages/BrewPostEdit";
 import Inventory from "@/pages/Inventory";
 import Procurement from "@/pages/Procurement";
 import Equipment from "@/pages/Equipment";
@@ -28,6 +30,7 @@ const navItems = [
   { path: "/procurement", label: "采购记录", icon: ShoppingCart },
   { path: "/tastings", label: "品鉴评分", icon: Star },
   { path: "/community", label: "社区分享", icon: Users },
+  { path: "/plaza", label: "酿造广场", icon: Flame },
 ];
 
 function Navbar() {
@@ -96,6 +99,8 @@ export default function App() {
             <Route path="/tastings/:id" element={<Tastings />} />
             <Route path="/tastings/:id/edit" element={<TastingEdit />} />
             <Route path="/community" element={<Community />} />
+            <Route path="/plaza" element={<BrewPlaza />} />
+            <Route path="/plaza/new" element={<BrewPostEdit />} />
           </Routes>
         </main>
         <footer className="bg-amber-900 text-amber-200 py-6 mt-12">

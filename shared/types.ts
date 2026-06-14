@@ -1213,3 +1213,38 @@ export const BJCP_STYLE_GUIDES: BJCPStyleGuide[] = [
     comments: '使用大量慕尼黑和维也纳麦芽，低温发酵和长时间熟成'
   }
 ];
+
+export interface BrewPostImage {
+  url: string;
+  caption?: string;
+}
+
+export interface BrewPost {
+  id: string;
+  title: string;
+  coverImage: string;
+  content: string;
+  authorId: string;
+  authorName: string;
+  batchId?: string;
+  batchName?: string;
+  recipeId?: string;
+  recipeName?: string;
+  images: BrewPostImage[];
+  likeCount: number;
+  bookmarkCount: number;
+  commentCount: number;
+  likedBy: string[];
+  bookmarkedBy: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BrewPostComment {
+  id: string;
+  postId: string;
+  authorId: string;
+  authorName: string;
+  content: string;
+  createdAt: string;
+}

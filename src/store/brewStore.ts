@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Recipe, Batch, Tasting, FermentationReading, ParameterDeviation, RecipeComparison, TastingComparison, UserBrewStats, RecipeComment, InventoryItem, InventoryCheckResult, IngredientShortage, IngredientType, BrewStage, BrewPhoto, Equipment, EquipmentType, BrewStep, WaterProfile, WaterAnalysisResult, BeerStyleWaterTarget, MineralCompound, BrewPlan, ProcurementRecord, ProcurementPriceTrend, BJCPStyleCheckResult, BJCPStyleGuide } from '../../shared/types.js';
+import type { Recipe, Batch, Tasting, FermentationReading, ParameterDeviation, RecipeComparison, TastingComparison, UserBrewStats, RecipeComment, InventoryItem, InventoryCheckResult, IngredientShortage, IngredientType, BrewStage, BrewPhoto, Equipment, EquipmentType, BrewStep, WaterProfile, WaterAnalysisResult, BeerStyleWaterTarget, MineralCompound, BrewPlan, ProcurementRecord, ProcurementPriceTrend, BJCPStyleCheckResult, BJCPStyleGuide, BrewPost, BrewPostComment, BrewPostImage } from '../../shared/types.js';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -39,6 +39,9 @@ interface BrewState {
   priceTrends: ProcurementPriceTrend[];
   bjcpCheckResult: BJCPStyleCheckResult | null;
   bjcpStyles: BJCPStyleGuide[];
+  brewPosts: BrewPost[];
+  currentBrewPost: BrewPost | null;
+  brewPostComments: BrewPostComment[];
 
   fetchRecipes: (params?: { public?: boolean; user?: string }) => Promise<void>;
   fetchRecipeById: (id: string) => Promise<void>;
@@ -144,6 +147,17 @@ interface BrewState {
   fetchBJCPStyles: () => Promise<void>;
   clearBJCPCheck: () => void;
 
+  fetchBrewPosts: (sort?: string) => Promise<void>;
+  fetchBrewPostById: (id: string) => Promise<void>;
+  createBrewPost: (data: { title: string; coverImage: string; content: string; authorId: string; authorName: string; batchId?: string; recipeId?: string; images?: BrewPostImage[] }) => Promise<BrewPost | null>;
+  updateBrewPost: (id: string, updates: Partial<BrewPost>) => Promise<BrewPost | null>;
+  deleteBrewPost: (id: string) => Promise<boolean>;
+  toggleBrewPostLike: (postId: string, userId: string) => Promise<BrewPost | null>;
+  toggleBrewPostBookmark: (postId: string, userId: string) => Promise<BrewPost | null>;
+  fetchBrewPostComments: (postId: string) => Promise<void>;
+  createBrewPostComment: (data: { postId: string; authorId: string; authorName: string; content: string }) => Promise<BrewPostComment | null>;
+  deleteBrewPostComment: (commentId: string) => Promise<boolean>;
+
   clearCurrent: () => void;
   setError: (error: string | null) => void;
 }
@@ -195,6 +209,9 @@ export const useBrewStore = create<BrewState>((set, _get) => ({
   priceTrends: [],
   bjcpCheckResult: null,
   bjcpStyles: [],
+  brewPosts: [],
+  currentBrewPost: null,
+  brewPostComments: [],
 
   fetchRecipes: async (params) => {
     set({ loading: true, error: null });
@@ -1763,6 +1780,189 @@ export const useBrewStore = create<BrewState>((set, _get) => ({
 
   clearBJCPCheck: () => {
     set({ bjcpCheckResult: null });
+  },
+
+  fetchBrewPosts: async (sort) => {
+    set({ loading: true, error: null });
+    try {
+      const query = sort ? `?sort=${sort}` : '';
+      const response = await apiFetch<BrewPost[]>(`/plaza${query}`);
+      if (response.success) {
+        set({ brewPosts: response.data, loading: false });
+      } else {
+        set({ error: response.error || '获取广场帖子失败', loading: false });
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+    }
+  },
+
+  fetchBrewPostById: async (id) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<BrewPost>(`/plaza/${id}`);
+      if (response.success) {
+        set({ currentBrewPost: response.data, loading: false });
+      } else {
+        set({ error: response.error || '获取帖子失败', loading: false });
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+    }
+  },
+
+  createBrewPost: async (data) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<BrewPost>('/plaza', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+      if (response.success) {
+        set((state) => ({
+          brewPosts: [response.data, ...state.brewPosts],
+          loading: false,
+        }));
+        return response.data;
+      } else {
+        set({ error: response.error || '创建帖子失败', loading: false });
+        return null;
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+      return null;
+    }
+  },
+
+  updateBrewPost: async (id, updates) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<BrewPost>(`/plaza/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+      if (response.success) {
+        set((state) => ({
+          brewPosts: state.brewPosts.map((p) => (p.id === id ? response.data : p)),
+          currentBrewPost: state.currentBrewPost?.id === id ? response.data : state.currentBrewPost,
+          loading: false,
+        }));
+        return response.data;
+      } else {
+        set({ error: response.error || '更新帖子失败', loading: false });
+        return null;
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+      return null;
+    }
+  },
+
+  deleteBrewPost: async (id) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<{ message: string }>(`/plaza/${id}`, {
+        method: 'DELETE',
+      });
+      if (response.success) {
+        set((state) => ({
+          brewPosts: state.brewPosts.filter((p) => p.id !== id),
+          currentBrewPost: state.currentBrewPost?.id === id ? null : state.currentBrewPost,
+          loading: false,
+        }));
+        return true;
+      } else {
+        set({ error: response.error || '删除帖子失败', loading: false });
+        return false;
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+      return false;
+    }
+  },
+
+  toggleBrewPostLike: async (postId, userId) => {
+    try {
+      const response = await apiFetch<BrewPost>(`/plaza/${postId}/like`, {
+        method: 'POST',
+        body: JSON.stringify({ userId }),
+      });
+      if (response.success) {
+        set((state) => ({
+          brewPosts: state.brewPosts.map((p) => (p.id === postId ? response.data : p)),
+          currentBrewPost: state.currentBrewPost?.id === postId ? response.data : state.currentBrewPost,
+        }));
+        return response.data;
+      }
+      return null;
+    } catch (_error) {
+      return null;
+    }
+  },
+
+  toggleBrewPostBookmark: async (postId, userId) => {
+    try {
+      const response = await apiFetch<BrewPost>(`/plaza/${postId}/bookmark`, {
+        method: 'POST',
+        body: JSON.stringify({ userId }),
+      });
+      if (response.success) {
+        set((state) => ({
+          brewPosts: state.brewPosts.map((p) => (p.id === postId ? response.data : p)),
+          currentBrewPost: state.currentBrewPost?.id === postId ? response.data : state.currentBrewPost,
+        }));
+        return response.data;
+      }
+      return null;
+    } catch (_error) {
+      return null;
+    }
+  },
+
+  fetchBrewPostComments: async (postId) => {
+    try {
+      const response = await apiFetch<BrewPostComment[]>(`/plaza/${postId}/comments`);
+      if (response.success) {
+        set({ brewPostComments: response.data });
+      }
+    } catch (_error) {
+      // silent
+    }
+  },
+
+  createBrewPostComment: async (data) => {
+    try {
+      const response = await apiFetch<BrewPostComment>(`/plaza/${data.postId}/comments`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+      if (response.success) {
+        set((state) => ({
+          brewPostComments: [...state.brewPostComments, response.data],
+        }));
+        return response.data;
+      }
+      return null;
+    } catch (_error) {
+      return null;
+    }
+  },
+
+  deleteBrewPostComment: async (commentId) => {
+    try {
+      const response = await apiFetch<{ message: string }>(`/plaza/comments/${commentId}`, {
+        method: 'DELETE',
+      });
+      if (response.success) {
+        set((state) => ({
+          brewPostComments: state.brewPostComments.filter((c) => c.id !== commentId),
+        }));
+        return true;
+      }
+      return false;
+    } catch (_error) {
+      return false;
+    }
   },
 
   clearCurrent: () => {

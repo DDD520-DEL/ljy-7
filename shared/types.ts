@@ -863,3 +863,353 @@ export const BEER_STYLE_WATER_TARGETS: BeerStyleWaterTarget[] = [
     tips: ['高氯化物增强麦芽甜感', '适量碳酸氢盐', '矿物质支撑高比重']
   }
 ];
+
+export interface BJCPStyleRange {
+  min: number;
+  max: number;
+}
+
+export interface BJCPStyleGuide {
+  style: string;
+  category: string;
+  srm: BJCPStyleRange;
+  ibu: BJCPStyleRange;
+  abv: BJCPStyleRange;
+  og: BJCPStyleRange;
+  fg: BJCPStyleRange;
+  description: string;
+  aroma: string;
+  appearance: string;
+  flavor: string;
+  mouthfeel: string;
+  comments: string;
+}
+
+export type BJCPDeviationLevel = 'compliant' | 'warning' | 'error';
+
+export interface BJCPParameterCheck {
+  parameter: 'srm' | 'ibu' | 'abv' | 'og' | 'fg';
+  parameterName: string;
+  actual: number;
+  min: number;
+  max: number;
+  isWithinRange: boolean;
+  deviationLevel: BJCPDeviationLevel;
+  deviationPercent: number;
+  suggestion: string;
+}
+
+export interface BJCPStyleCheckResult {
+  style: string;
+  styleFound: boolean;
+  styleGuide?: BJCPStyleGuide;
+  checks: BJCPParameterCheck[];
+  overallScore: number;
+  compliantCount: number;
+  warningCount: number;
+  errorCount: number;
+  summary: string;
+}
+
+export const BJCP_STYLE_GUIDES: BJCPStyleGuide[] = [
+  {
+    style: 'IPA',
+    category: '14. India Pale Ale',
+    srm: { min: 6, max: 14 },
+    ibu: { min: 40, max: 70 },
+    abv: { min: 5.5, max: 7.5 },
+    og: { min: 1.056, max: 1.070 },
+    fg: { min: 1.008, max: 1.014 },
+    description: '中等酒体，强调啤酒花香气和苦味，麦芽甜感作为支撑',
+    aroma: '中等至强烈的啤酒花香气，带有柑橘、花香、松脂或热带水果特征',
+    appearance: '金色到琥珀色，清澈，泡沫丰富持久',
+    flavor: '中等至强烈的啤酒花苦味，收尾干爽，麦芽甜味平衡',
+    mouthfeel: '中等酒体，中等至较高的碳酸化',
+    comments: '酒花品种和干投是风味关键，注意平衡苦味和甜味'
+  },
+  {
+    style: 'Double IPA',
+    category: '14. India Pale Ale',
+    srm: { min: 7, max: 17 },
+    ibu: { min: 60, max: 100 },
+    abv: { min: 7.5, max: 10.0 },
+    og: { min: 1.075, max: 1.095 },
+    fg: { min: 1.010, max: 1.020 },
+    description: '加强版IPA，更高的酒精度、苦味和酒花香气',
+    aroma: '强烈的啤酒花香气，多种复杂的酒花特征',
+    appearance: '金色到深琥珀色，清澈或微浊',
+    flavor: '强烈的啤酒花苦味和风味，高酒精度但不粗糙',
+    mouthfeel: '中等至饱满酒体，高度碳酸化',
+    comments: '需要足够的麦芽来支撑高酒精度，注意酵母选择和发酵温度'
+  },
+  {
+    style: 'Pale Ale',
+    category: '13. American Pale Ale',
+    srm: { min: 5, max: 10 },
+    ibu: { min: 30, max: 50 },
+    abv: { min: 4.5, max: 6.2 },
+    og: { min: 1.045, max: 1.060 },
+    fg: { min: 1.010, max: 1.015 },
+    description: '清爽、易饮的美式啤酒，突出啤酒花和麦芽的平衡',
+    aroma: '中等强度的啤酒花香气，柑橘或花香特征',
+    appearance: '金黄色到琥珀色，清澈',
+    flavor: '中等啤酒花苦味，麦芽甜感支撑，收尾干爽',
+    mouthfeel: '中等偏轻酒体，中等碳酸化',
+    comments: '易饮型精酿啤酒的经典，适合日常饮用'
+  },
+  {
+    style: 'Stout',
+    category: '16. Stout',
+    srm: { min: 30, max: 80 },
+    ibu: { min: 25, max: 50 },
+    abv: { min: 5.0, max: 7.5 },
+    og: { min: 1.045, max: 1.065 },
+    fg: { min: 1.010, max: 1.018 },
+    description: '深色啤酒，带有烘烤、咖啡、巧克力特征',
+    aroma: '中等烘烤香气，可能有咖啡、巧克力、焦糖',
+    appearance: '深棕色到黑色，不透明，棕褐色泡沫',
+    flavor: '烘烤麦芽风味，中等苦味，可能有咖啡、巧克力味',
+    mouthfeel: '中等至饱满酒体，中等碳酸化',
+    comments: '烘烤麦芽是关键，注意控制IBU不要过高'
+  },
+  {
+    style: 'Imperial Stout',
+    category: '16. Stout',
+    srm: { min: 40, max: 80 },
+    ibu: { min: 50, max: 90 },
+    abv: { min: 8.0, max: 12.0 },
+    og: { min: 1.080, max: 1.110 },
+    fg: { min: 1.015, max: 1.030 },
+    description: '加强型世涛，厚重酒体，复杂风味，适合陈酿',
+    aroma: '强烈的烘烤和麦芽甜香，可能有水果、酒花、酒精香气',
+    appearance: '深黑色，不透明，厚而持久的棕褐色泡沫',
+    flavor: '丰富的烘烤麦芽、巧克力、咖啡风味，高酒精度温暖感',
+    mouthfeel: '非常饱满的酒体，中等至较低的碳酸化',
+    comments: '需要大量深色麦芽，注意发酵控制，可陈酿数月'
+  },
+  {
+    style: 'Porter',
+    category: '16. Stout',
+    srm: { min: 18, max: 40 },
+    ibu: { min: 18, max: 35 },
+    abv: { min: 4.5, max: 6.5 },
+    og: { min: 1.040, max: 1.060 },
+    fg: { min: 1.008, max: 1.016 },
+    description: '中等酒体的深色啤酒，烘烤麦芽和焦糖风味',
+    aroma: '中等烘烤香气，巧克力、焦糖、坚果特征',
+    appearance: '深棕色到黑色，可能微透红光',
+    flavor: '烘烤麦芽甜感，中等苦味，巧克力、焦糖风味',
+    mouthfeel: '中等酒体，中等碳酸化',
+    comments: '比世涛更轻盈，烘烤风味更柔和'
+  },
+  {
+    style: 'Lager',
+    category: '02. International Lager',
+    srm: { min: 2, max: 6 },
+    ibu: { min: 8, max: 25 },
+    abv: { min: 4.2, max: 5.8 },
+    og: { min: 1.042, max: 1.056 },
+    fg: { min: 1.006, max: 1.012 },
+    description: '清爽、干净的淡色拉格，突出麦芽的纯净',
+    aroma: '轻微的谷物和麦芽香气，非常干净',
+    appearance: '极浅的稻草色到金黄色，清澈透明',
+    flavor: '干净的谷物甜味，低到中等的苦味，收尾干爽',
+    mouthfeel: '中等偏轻酒体，高碳酸化',
+    comments: '需要低温发酵和长时间熟成，干净是关键'
+  },
+  {
+    style: 'Pilsner',
+    category: '03. Czech Pale Lager',
+    srm: { min: 3, max: 6 },
+    ibu: { min: 35, max: 50 },
+    abv: { min: 4.2, max: 5.6 },
+    og: { min: 1.042, max: 1.056 },
+    fg: { min: 1.013, max: 1.017 },
+    description: '经典捷克皮尔森，突出萨兹酒花的花香和苦味',
+    aroma: '明显的萨兹酒花花香和香料香气，柔和的麦芽甜香',
+    appearance: '稻草色到金黄色，非常清澈，白色泡沫丰富',
+    flavor: '明显的酒花苦味，柔和的麦芽甜感，收尾干爽带微甜',
+    mouthfeel: '中等酒体，中等至高碳酸化',
+    comments: '软水质和萨兹酒花是关键，低温发酵和熟成'
+  },
+  {
+    style: 'Wheat Beer',
+    category: '10. Wheat Beer',
+    srm: { min: 3, max: 9 },
+    ibu: { min: 8, max: 20 },
+    abv: { min: 4.0, max: 5.5 },
+    og: { min: 1.040, max: 1.052 },
+    fg: { min: 1.008, max: 1.013 },
+    description: '使用大量小麦麦芽，酵母产生独特的水果和香料香气',
+    aroma: '香蕉和丁香等酵母产生的香气，轻微的小麦和谷物香',
+    appearance: '稻草色到浅琥珀色，通常浑浊，白色泡沫丰富',
+    flavor: '柔和的酵母风味（香蕉、丁香），低苦味，轻微的小麦酸味',
+    mouthfeel: '中等酒体，中等至高碳酸化',
+    comments: '选择合适的小麦酵母是关键，注意发酵温度控制'
+  },
+  {
+    style: 'Hefeweizen',
+    category: '10. Wheat Beer',
+    srm: { min: 4, max: 9 },
+    ibu: { min: 8, max: 15 },
+    abv: { min: 4.8, max: 5.8 },
+    og: { min: 1.046, max: 1.056 },
+    fg: { min: 1.010, max: 1.014 },
+    description: '德式酵母小麦啤酒，突出酵母产生的香蕉和丁香风味',
+    aroma: '强烈的酵母特征：香蕉酯和丁香酚，轻微的小麦香',
+    appearance: '淡黄色到暗金色，非常浑浊，浓厚的白色泡沫',
+    flavor: '香蕉、丁香风味为主，柔和的麦芽甜感，几乎没有苦味',
+    mouthfeel: '中等至饱满酒体，高碳酸化',
+    comments: '使用传统德式小麦酵母，不过滤，保留酵母悬浮'
+  },
+  {
+    style: 'Saison',
+    category: '25. Belgian & French Ale',
+    srm: { min: 5, max: 14 },
+    ibu: { min: 20, max: 35 },
+    abv: { min: 5.5, max: 8.5 },
+    og: { min: 1.048, max: 1.080 },
+    fg: { min: 1.002, max: 1.012 },
+    description: '比利时农场风格，高度发酵，干爽，带有辛辣和果香酵母特征',
+    aroma: '复杂的酵母香气：胡椒、香料、柑橘、热带水果',
+    appearance: '金色到琥珀色，通常微浊，泡沫丰富',
+    flavor: '干爽，酵母产生的辛辣和果味，低到中等苦味，非常干爽的收尾',
+    mouthfeel: '中等酒体，高碳酸化，温暖的酒精感',
+    comments: '使用赛松酵母，发酵温度可以适当提高，确保充分发酵'
+  },
+  {
+    style: 'Belgian Tripel',
+    category: '25. Belgian & French Ale',
+    srm: { min: 4, max: 7 },
+    ibu: { min: 20, max: 40 },
+    abv: { min: 7.5, max: 10.5 },
+    og: { min: 1.070, max: 1.095 },
+    fg: { min: 1.005, max: 1.014 },
+    description: '比利时金色烈性艾尔，高酒精度但易饮，酵母特征复杂',
+    aroma: '复杂的酵母香气：果香、香料、轻微的酒精香，淡淡的酒花香气',
+    appearance: '淡金色到金色，清澈，白色泡沫丰富持久',
+    flavor: '平衡的麦芽甜感和酒精温暖感，酵母产生的果味和香料味，中等苦味，非常干爽的收尾',
+    mouthfeel: '中等酒体，高碳酸化，明显的酒精温暖感但不刺激',
+    comments: '使用比利时修道院酵母，大量糖料，充分发酵'
+  },
+  {
+    style: 'Sour',
+    category: '28. American Wild Ale',
+    srm: { min: 3, max: 20 },
+    ibu: { min: 0, max: 25 },
+    abv: { min: 3.5, max: 8.0 },
+    og: { min: 1.040, max: 1.080 },
+    fg: { min: 1.002, max: 1.012 },
+    description: '使用细菌或野生酵母产生令人愉悦的酸味',
+    aroma: '明显的乳酸或醋酸香气，可能有水果香气',
+    appearance: '变化很大，从浅黄色到深红棕色',
+    flavor: '主要特征是酸味，从清爽的乳酸到复杂的混合酸',
+    mouthfeel: '从轻到中等酒体，中等至高碳酸化',
+    comments: '酸化技术多样，注意卫生防止不良微生物'
+  },
+  {
+    style: 'Gose',
+    category: '28. American Wild Ale',
+    srm: { min: 3, max: 5 },
+    ibu: { min: 5, max: 15 },
+    abv: { min: 4.0, max: 5.5 },
+    og: { min: 1.040, max: 1.052 },
+    fg: { min: 1.006, max: 1.010 },
+    description: '德国传统酸啤酒，带有盐和香菜籽的特征',
+    aroma: '清新的乳酸香气，轻微的香料（香菜籽）和咸感',
+    appearance: '淡稻草色，浑浊，白色泡沫',
+    flavor: '清爽的乳酸酸味，轻微的咸感，香菜籽香料味，非常干爽',
+    mouthfeel: '轻酒体，高碳酸化',
+    comments: '通常在煮沸后期添加盐和香菜籽，控制酸化程度'
+  },
+  {
+    style: 'Barleywine',
+    category: '17. English Strong Ale',
+    srm: { min: 10, max: 22 },
+    ibu: { min: 35, max: 85 },
+    abv: { min: 8.0, max: 12.0 },
+    og: { min: 1.080, max: 1.120 },
+    fg: { min: 1.016, max: 1.030 },
+    description: '非常强烈的麦芽酒，高酒精度，适合陈酿',
+    aroma: '丰富的麦芽甜香，可能有水果酯和酒花香气',
+    appearance: '深琥珀色到深棕色，清澈',
+    flavor: '强烈的麦芽甜味，复杂的水果和酒花风味，高酒精度温暖感',
+    mouthfeel: '饱满到非常饱满的酒体，中等碳酸化',
+    comments: '需要大量优质麦芽，注意酵母选择和发酵管理，可长期陈酿'
+  },
+  {
+    style: 'Brown Ale',
+    category: '11. English Brown Ale',
+    srm: { min: 12, max: 22 },
+    ibu: { min: 15, max: 30 },
+    abv: { min: 4.0, max: 6.5 },
+    og: { min: 1.040, max: 1.060 },
+    fg: { min: 1.008, max: 1.016 },
+    description: '中等酒体，麦芽甜味，坚果和焦糖风味',
+    aroma: '中等的麦芽甜香，坚果、焦糖、轻微烘烤香',
+    appearance: '浅棕色到深棕色，清澈',
+    flavor: '主要是麦芽甜味，坚果、焦糖、轻微烘烤风味，低到中等苦味',
+    mouthfeel: '中等酒体，中等碳酸化',
+    comments: '平衡易饮，使用水晶麦芽和少量巧克力麦芽'
+  },
+  {
+    style: 'Amber Ale',
+    category: '13. American Ale',
+    srm: { min: 10, max: 17 },
+    ibu: { min: 25, max: 45 },
+    abv: { min: 4.5, max: 6.5 },
+    og: { min: 1.045, max: 1.060 },
+    fg: { min: 1.010, max: 1.016 },
+    description: '平衡的美式琥珀艾尔，麦芽和酒花的协调',
+    aroma: '中等酒花香气和中等麦芽甜香，焦糖香',
+    appearance: '琥珀色到红铜色，清澈',
+    flavor: '中等麦芽甜感，焦糖风味，中等酒花苦味，平衡',
+    mouthfeel: '中等酒体，中等碳酸化',
+    comments: '水晶麦芽提供颜色和甜味，美式酒花提供风味'
+  },
+  {
+    style: 'Blonde Ale',
+    category: '13. American Ale',
+    srm: { min: 3, max: 6 },
+    ibu: { min: 15, max: 28 },
+    abv: { min: 4.0, max: 5.5 },
+    og: { min: 1.038, max: 1.054 },
+    fg: { min: 1.008, max: 1.013 },
+    description: '清爽易饮的金色艾尔，麦芽甜感为主',
+    aroma: '轻微的谷物和麦芽甜香，可能有轻微的酒花香气',
+    appearance: '稻草色到金黄色，清澈',
+    flavor: '柔和的麦芽甜感，低酒花苦味，清爽易饮',
+    mouthfeel: '中等偏轻酒体，中等碳酸化',
+    comments: '适合入门者，平衡易饮，不要过度复杂化'
+  },
+  {
+    style: 'Kölsch',
+    category: '08. German Ale',
+    srm: { min: 3, max: 5 },
+    ibu: { min: 18, max: 30 },
+    abv: { min: 4.4, max: 5.2 },
+    og: { min: 1.044, max: 1.050 },
+    fg: { min: 1.006, max: 1.011 },
+    description: '科隆特色，清爽、优雅的艾尔，口感接近拉格',
+    aroma: '非常细腻的麦芽甜香和酒花花香，干净',
+    appearance: '非常浅的稻草色到淡黄色，非常清澈',
+    flavor: '柔和的麦芽甜感，细腻的酒花苦味，非常干爽优雅',
+    mouthfeel: '中等偏轻酒体，中等至高碳酸化',
+    comments: '使用Kölsch酵母，低温发酵和熟成，突出优雅和纯净'
+  },
+  {
+    style: 'Bock',
+    category: '06. Bock',
+    srm: { min: 12, max: 30 },
+    ibu: { min: 18, max: 30 },
+    abv: { min: 6.3, max: 7.6 },
+    og: { min: 1.064, max: 1.072 },
+    fg: { min: 1.014, max: 1.020 },
+    description: '德国烈性拉格，麦芽甜香为主，酒精度较高',
+    aroma: '丰富的麦芽甜香，可能有轻微的焦糖和烘烤香',
+    appearance: '深琥珀色到深棕色，清澈',
+    flavor: '强烈的麦芽甜味，轻微的烘烤和焦糖风味，低酒花苦味，柔和的酒精感',
+    mouthfeel: '中等至饱满酒体，中等碳酸化',
+    comments: '使用大量慕尼黑和维也纳麦芽，低温发酵和长时间熟成'
+  }
+];

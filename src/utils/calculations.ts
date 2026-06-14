@@ -1,4 +1,5 @@
-import type { Recipe, MaltItem, HopAddition, Yeast, CostSnapshot, Batch, FermentationReading, WaterProfile, BeerStyleWaterTarget, WaterAnalysisResult, MineralAddition, MineralCompound } from '../../shared/types.js';
+import type { Recipe, MaltItem, HopAddition, Yeast, CostSnapshot, Batch, FermentationReading, WaterProfile, BeerStyleWaterTarget, WaterAnalysisResult, MineralAddition, MineralCompound, BJCPStyleGuide, BJCPParameterCheck, BJCPStyleCheckResult, BJCPDeviationLevel } from '../../shared/types.js';
+import { BJCP_STYLE_GUIDES } from '../../shared/types.js';
 
 export const FERMENTATION_ANOMALY_THRESHOLD = 0.008;
 export const EXPECTED_FERMENTATION_DAYS = 14;
@@ -616,5 +617,210 @@ export const analyzeWater = (
     finalEstimate,
     warnings,
     suggestions,
+  };
+};
+
+export const getBJCPStyleGuide = (style: string): BJCPStyleGuide | undefined => {
+  const normalizedStyle = style.toLowerCase().trim();
+  return BJCP_STYLE_GUIDES.find(s => 
+    s.style.toLowerCase() === normalizedStyle ||
+    s.style.toLowerCase().includes(normalizedStyle) ||
+    normalizedStyle.includes(s.style.toLowerCase())
+  );
+};
+
+const calculateDeviationPercent = (actual: number, min: number, max: number): number => {
+  if (actual >= min && actual <= max) return 0;
+  
+  const range = max - min;
+  if (range === 0) return 0;
+  
+  if (actual < min) {
+    return ((min - actual) / range) * 100;
+  } else {
+    return ((actual - max) / range) * 100;
+  }
+};
+
+const getDeviationLevel = (deviationPercent: number): BJCPDeviationLevel => {
+  if (deviationPercent === 0) return 'compliant';
+  if (deviationPercent <= 20) return 'warning';
+  return 'error';
+};
+
+const generateSuggestion = (
+  parameter: string,
+  actual: number,
+  min: number,
+  max: number,
+  unit: string
+): string => {
+  if (actual >= min && actual <= max) {
+    return `${parameter}符合风格要求，保持当前配方即可。`;
+  }
+  
+  if (actual < min) {
+    const diff = min - actual;
+    const formattedDiff = parameter === 'OG' || parameter === 'FG' 
+      ? diff.toFixed(3) 
+      : diff.toFixed(1);
+    return `${parameter}偏低${formattedDiff}${unit}，建议增加至 ${min}-${max}${unit} 范围内。`;
+  } else {
+    const diff = actual - max;
+    const formattedDiff = parameter === 'OG' || parameter === 'FG' 
+      ? diff.toFixed(3) 
+      : diff.toFixed(1);
+    return `${parameter}偏高${formattedDiff}${unit}，建议降低至 ${min}-${max}${unit} 范围内。`;
+  }
+};
+
+const checkParameter = (
+  parameter: 'srm' | 'ibu' | 'abv' | 'og' | 'fg',
+  actual: number,
+  styleGuide: BJCPStyleGuide
+): BJCPParameterCheck => {
+  const parameterNames: Record<string, string> = {
+    srm: '色度 (SRM)',
+    ibu: '苦度 (IBU)',
+    abv: '酒精度 (ABV)',
+    og: '原始比重 (OG)',
+    fg: '最终比重 (FG)'
+  };
+  
+  const units: Record<string, string> = {
+    srm: '',
+    ibu: '',
+    abv: '%',
+    og: '',
+    fg: ''
+  };
+  
+  const range = styleGuide[parameter];
+  const deviationPercent = calculateDeviationPercent(actual, range.min, range.max);
+  const deviationLevel = getDeviationLevel(deviationPercent);
+  const suggestion = generateSuggestion(
+    parameterNames[parameter],
+    actual,
+    range.min,
+    range.max,
+    units[parameter]
+  );
+  
+  return {
+    parameter,
+    parameterName: parameterNames[parameter],
+    actual,
+    min: range.min,
+    max: range.max,
+    isWithinRange: deviationLevel === 'compliant',
+    deviationLevel,
+    deviationPercent: Math.round(deviationPercent * 10) / 10,
+    suggestion
+  };
+};
+
+const generateOverallSuggestions = (checks: BJCPParameterCheck[]): string[] => {
+  const suggestions: string[] = [];
+  
+  const ogCheck = checks.find(c => c.parameter === 'og');
+  const ibuCheck = checks.find(c => c.parameter === 'ibu');
+  const abvCheck = checks.find(c => c.parameter === 'abv');
+  const srmCheck = checks.find(c => c.parameter === 'srm');
+  
+  if (ogCheck && !ogCheck.isWithinRange) {
+    if (ogCheck.actual < ogCheck.min) {
+      suggestions.push('OG偏低：考虑增加基础麦芽用量或减少用水量来提高原始比重。');
+    } else {
+      suggestions.push('OG偏高：考虑减少基础麦芽用量或增加用水量来降低原始比重。');
+    }
+  }
+  
+  if (ibuCheck && !ibuCheck.isWithinRange) {
+    if (ibuCheck.actual < ibuCheck.min) {
+      suggestions.push('IBU偏低：增加酒花用量、提前投酒花或使用高α酸酒花品种。');
+    } else {
+      suggestions.push('IBU偏高：减少酒花用量、延后投酒花或使用低α酸酒花品种。');
+    }
+  }
+  
+  if (abvCheck && !abvCheck.isWithinRange) {
+    if (abvCheck.actual < abvCheck.min) {
+      suggestions.push('ABV偏低：增加可发酵糖含量，使用高发酵度酵母，或延长发酵时间。');
+    } else {
+      suggestions.push('ABV偏高：减少可发酵糖含量，使用低发酵度酵母，或添加不发酵糖。');
+    }
+  }
+  
+  if (srmCheck && !srmCheck.isWithinRange) {
+    if (srmCheck.actual < srmCheck.min) {
+      suggestions.push('SRM偏低：增加深色麦芽（如巧克力麦芽、焦香麦芽）的比例。');
+    } else {
+      suggestions.push('SRM偏高：减少深色麦芽比例，增加浅色基础麦芽用量。');
+    }
+  }
+  
+  return suggestions;
+};
+
+export const checkBJCPStyleCompliance = (
+  recipe: Recipe,
+  targetStyle?: string
+): BJCPStyleCheckResult => {
+  const styleToCheck = targetStyle || recipe.style;
+  const styleGuide = getBJCPStyleGuide(styleToCheck);
+  
+  if (!styleGuide) {
+    return {
+      style: styleToCheck,
+      styleFound: false,
+      checks: [],
+      overallScore: 0,
+      compliantCount: 0,
+      warningCount: 0,
+      errorCount: 0,
+      summary: `未找到风格 "${styleToCheck}" 的BJCP标准数据，请检查风格名称是否正确。`
+    };
+  }
+  
+  const fg = recipe.finalGravity || 1.010;
+  
+  const checks: BJCPParameterCheck[] = [
+    checkParameter('srm', recipe.srm, styleGuide),
+    checkParameter('ibu', recipe.ibu, styleGuide),
+    checkParameter('abv', recipe.abv, styleGuide),
+    checkParameter('og', recipe.originalGravity, styleGuide),
+    checkParameter('fg', fg, styleGuide)
+  ];
+  
+  const compliantCount = checks.filter(c => c.deviationLevel === 'compliant').length;
+  const warningCount = checks.filter(c => c.deviationLevel === 'warning').length;
+  const errorCount = checks.filter(c => c.deviationLevel === 'error').length;
+  
+  const overallScore = Math.round((compliantCount / checks.length) * 100);
+  
+  let summary = '';
+  if (errorCount > 0) {
+    summary = `检测到 ${errorCount} 项参数严重偏离 ${styleGuide.style} 风格标准，建议优先调整。`;
+  } else if (warningCount > 0) {
+    summary = `检测到 ${warningCount} 项参数轻微偏离 ${styleGuide.style} 风格标准，可根据需要微调。`;
+  } else {
+    summary = `恭喜！所有参数均符合 ${styleGuide.style} 风格标准，配方设计优秀。`;
+  }
+  
+  const additionalSuggestions = generateOverallSuggestions(checks);
+  if (additionalSuggestions.length > 0) {
+    summary += ' ' + additionalSuggestions.join(' ');
+  }
+  
+  return {
+    style: styleToCheck,
+    styleFound: true,
+    styleGuide,
+    checks,
+    overallScore,
+    compliantCount,
+    warningCount,
+    errorCount,
+    summary
   };
 };

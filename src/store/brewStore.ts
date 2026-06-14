@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Recipe, Batch, Tasting, FermentationReading, ParameterDeviation, RecipeComparison, TastingComparison, UserBrewStats, RecipeComment, InventoryItem, InventoryCheckResult, IngredientShortage, IngredientType, BrewStage, BrewPhoto, Equipment, EquipmentType, BrewStep, WaterProfile, WaterAnalysisResult, BeerStyleWaterTarget, MineralCompound, BrewPlan, ProcurementRecord, ProcurementPriceTrend } from '../../shared/types.js';
+import type { Recipe, Batch, Tasting, FermentationReading, ParameterDeviation, RecipeComparison, TastingComparison, UserBrewStats, RecipeComment, InventoryItem, InventoryCheckResult, IngredientShortage, IngredientType, BrewStage, BrewPhoto, Equipment, EquipmentType, BrewStep, WaterProfile, WaterAnalysisResult, BeerStyleWaterTarget, MineralCompound, BrewPlan, ProcurementRecord, ProcurementPriceTrend, BJCPStyleCheckResult, BJCPStyleGuide } from '../../shared/types.js';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -37,6 +37,8 @@ interface BrewState {
   activeReminders: BrewPlan[];
   procurements: ProcurementRecord[];
   priceTrends: ProcurementPriceTrend[];
+  bjcpCheckResult: BJCPStyleCheckResult | null;
+  bjcpStyles: BJCPStyleGuide[];
 
   fetchRecipes: (params?: { public?: boolean; user?: string }) => Promise<void>;
   fetchRecipeById: (id: string) => Promise<void>;
@@ -138,6 +140,10 @@ interface BrewState {
   updateProcurement: (id: string, updates: Partial<Omit<ProcurementRecord, 'id' | 'createdAt'>>) => Promise<ProcurementRecord | null>;
   deleteProcurement: (id: string) => Promise<boolean>;
 
+  checkBJCPStyleCompliance: (recipeId: string, targetStyle?: string) => Promise<BJCPStyleCheckResult | null>;
+  fetchBJCPStyles: () => Promise<void>;
+  clearBJCPCheck: () => void;
+
   clearCurrent: () => void;
   setError: (error: string | null) => void;
 }
@@ -187,6 +193,8 @@ export const useBrewStore = create<BrewState>((set, _get) => ({
   activeReminders: [],
   procurements: [],
   priceTrends: [],
+  bjcpCheckResult: null,
+  bjcpStyles: [],
 
   fetchRecipes: async (params) => {
     set({ loading: true, error: null });
@@ -1715,6 +1723,46 @@ export const useBrewStore = create<BrewState>((set, _get) => ({
       set({ error: '网络错误', loading: false });
       return false;
     }
+  },
+
+  checkBJCPStyleCompliance: async (recipeId, targetStyle) => {
+    set({ loading: true, error: null });
+    try {
+      const query = new URLSearchParams();
+      if (targetStyle) query.append('targetStyle', targetStyle);
+      const queryString = query.toString();
+      const response = await apiFetch<BJCPStyleCheckResult>(
+        `/recipes/${recipeId}/bjcp-check${queryString ? `?${queryString}` : ''}`
+      );
+      if (response.success) {
+        set({ bjcpCheckResult: response.data, loading: false });
+        return response.data;
+      } else {
+        set({ error: response.error || '风格合规性检查失败', loading: false });
+        return null;
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+      return null;
+    }
+  },
+
+  fetchBJCPStyles: async () => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<BJCPStyleGuide[]>('/recipes/bjcp/styles');
+      if (response.success) {
+        set({ bjcpStyles: response.data, loading: false });
+      } else {
+        set({ error: response.error || '获取BJCP风格列表失败', loading: false });
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+    }
+  },
+
+  clearBJCPCheck: () => {
+    set({ bjcpCheckResult: null });
   },
 
   clearCurrent: () => {

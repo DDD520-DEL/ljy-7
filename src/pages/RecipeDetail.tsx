@@ -9,6 +9,7 @@ import RecipeLineageTree from '../components/RecipeLineageTree.js';
 import BatchCompareChart from '../components/BatchCompareChart.js';
 import CommentSection from '../components/CommentSection.js';
 import StarRating from '../components/StarRating.js';
+import BJCPStyleCheck from '../components/BJCPStyleCheck.js';
 
 export default function RecipeDetail() {
   const { id } = useParams<{ id: string }>();
@@ -45,7 +46,9 @@ export default function RecipeDetail() {
       fetchRecipeLineage(id);
     }
     return () => {
-      useBrewStore.getState().clearCurrent();
+      const state = useBrewStore.getState();
+      state.clearCurrent();
+      state.clearBJCPCheck();
     };
   }, [id, fetchRecipeById, fetchBatches, fetchTastings, fetchRecipeVersions, fetchRecipeLineage]);
 
@@ -259,7 +262,8 @@ export default function RecipeDetail() {
       </div>
 
       {activeTab === 'overview' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-white rounded-xl p-6 border border-gray-100">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <Scale className="text-amber-600" size={20} />
@@ -375,6 +379,16 @@ export default function RecipeDetail() {
             </div>
           </div>
         </div>
+
+          <div className="mt-6">
+            {currentRecipe && (
+              <BJCPStyleCheck
+                recipeId={currentRecipe.id}
+                recipeStyle={currentRecipe.style}
+              />
+            )}
+          </div>
+        </>
       )}
 
       {activeTab === 'versions' && (

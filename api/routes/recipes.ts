@@ -1,5 +1,6 @@
 import express, { type Request, type Response } from 'express';
 import { store } from '../data/store.js';
+import { BJCP_STYLE_GUIDES } from '../../shared/types.js';
 
 const router = express.Router();
 
@@ -147,6 +148,44 @@ router.post('/:id/fork', (req: Request, res: Response) => {
   res.status(201).json({
     success: true,
     data: forked,
+  });
+});
+
+router.get('/:id/bjcp-check', (req: Request, res: Response) => {
+  const { targetStyle } = req.query;
+  const result = store.checkBJCPStyleCompliance(
+    req.params.id,
+    targetStyle ? String(targetStyle) : undefined
+  );
+  
+  if (!result) {
+    return res.status(404).json({
+      success: false,
+      error: '配方不存在',
+    });
+  }
+  
+  res.json({
+    success: true,
+    data: result,
+  });
+});
+
+router.get('/bjcp/styles', (_req: Request, res: Response) => {
+  const styles = BJCP_STYLE_GUIDES.map(s => ({
+    style: s.style,
+    category: s.category,
+    description: s.description,
+    srm: s.srm,
+    ibu: s.ibu,
+    abv: s.abv,
+    og: s.og,
+    fg: s.fg,
+  }));
+  
+  res.json({
+    success: true,
+    data: styles,
   });
 });
 

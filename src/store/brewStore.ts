@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Recipe, Batch, Tasting, FermentationReading, ParameterDeviation, RecipeComparison, TastingComparison, UserBrewStats, RecipeComment, InventoryItem, InventoryCheckResult, IngredientShortage, IngredientType, BrewStage, BrewPhoto, Equipment, EquipmentType, BrewStep, WaterProfile, WaterAnalysisResult, BeerStyleWaterTarget, MineralCompound, BrewPlan, ProcurementRecord, ProcurementPriceTrend, BJCPStyleCheckResult, BJCPStyleGuide, BrewPost, BrewPostComment, BrewPostImage } from '../../shared/types.js';
+import type { Recipe, Batch, Tasting, FermentationReading, ParameterDeviation, RecipeComparison, TastingComparison, UserBrewStats, RecipeComment, InventoryItem, InventoryCheckResult, IngredientShortage, IngredientType, BrewStage, BrewPhoto, Equipment, EquipmentType, BrewStep, WaterProfile, WaterAnalysisResult, BeerStyleWaterTarget, MineralCompound, BrewPlan, ProcurementRecord, ProcurementPriceTrend, BJCPStyleCheckResult, BJCPStyleGuide, BrewPost, BrewPostComment, BrewPostImage, RecommendationResult, RecommendedRecipe } from '../../shared/types.js';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -42,6 +42,11 @@ interface BrewState {
   brewPosts: BrewPost[];
   currentBrewPost: BrewPost | null;
   brewPostComments: BrewPostComment[];
+  recommendations: RecommendationResult | null;
+  recommendedRecipes: RecommendedRecipe[];
+
+  fetchRecommendedRecipes: (userId: string, forceRefresh?: boolean, limit?: number) => Promise<void>;
+  refreshRecommendations: (userId: string, limit?: number) => Promise<void>;
 
   fetchRecipes: (params?: { public?: boolean; user?: string }) => Promise<void>;
   fetchRecipeById: (id: string) => Promise<void>;
@@ -212,6 +217,8 @@ export const useBrewStore = create<BrewState>((set, _get) => ({
   brewPosts: [],
   currentBrewPost: null,
   brewPostComments: [],
+  recommendations: null,
+  recommendedRecipes: [],
 
   fetchRecipes: async (params) => {
     set({ loading: true, error: null });
@@ -1978,6 +1985,51 @@ export const useBrewStore = create<BrewState>((set, _get) => ({
       return false;
     } catch (_error) {
       return false;
+    }
+  },
+
+  fetchRecommendedRecipes: async (userId, forceRefresh = false, limit = 6) => {
+    set({ loading: true, error: null });
+    try {
+      const query = new URLSearchParams();
+      if (forceRefresh) query.append('refresh', 'true');
+      if (limit) query.append('limit', String(limit));
+      const queryString = query.toString();
+      const response = await apiFetch<RecommendationResult>(
+        `/recommendations/${userId}${queryString ? `?${queryString}` : ''}`
+      );
+      if (response.success) {
+        set({
+          recommendations: response.data,
+          recommendedRecipes: response.data.recommendations,
+          loading: false,
+        });
+      } else {
+        set({ error: response.error || '获取推荐配方失败', loading: false });
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+    }
+  },
+
+  refreshRecommendations: async (userId, limit = 6) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<RecommendationResult>(`/recommendations/${userId}/refresh`, {
+        method: 'POST',
+        body: JSON.stringify({ limit }),
+      });
+      if (response.success) {
+        set({
+          recommendations: response.data,
+          recommendedRecipes: response.data.recommendations,
+          loading: false,
+        });
+      } else {
+        set({ error: response.error || '刷新推荐失败', loading: false });
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
     }
   },
 

@@ -7,6 +7,7 @@ import { formatDate, formatABV, getDaysSince, getAnomalousBatches, formatGravity
 import { cn } from '../lib/utils.js';
 import BrewCalendar from '../components/BrewCalendar.js';
 import BrewStatsPanel from '../components/BrewStatsPanel.js';
+import RecipeRecommendations from '../components/RecipeRecommendations.js';
 
 const statusColors: Record<string, string> = {
   planning: 'bg-gray-100 text-gray-700',
@@ -25,7 +26,7 @@ const statusIcons: Record<string, React.ReactNode> = {
 };
 
 export default function Home() {
-  const { recipes, batches, calendarBatches, tastings, userBrewStats, inventory, brewPlans, activeReminders, loading, fetchRecipes, fetchBatches, fetchBatchesByDateRange, fetchTastings, fetchUserStats, fetchInventory, fetchBrewPlans, fetchActiveReminders } = useBrewStore();
+  const { recipes, batches, calendarBatches, tastings, userBrewStats, inventory, brewPlans, activeReminders, loading, fetchRecipes, fetchBatches, fetchBatchesByDateRange, fetchTastings, fetchUserStats, fetchInventory, fetchBrewPlans, fetchActiveReminders, fetchRecommendedRecipes } = useBrewStore();
 
   useEffect(() => {
     fetchRecipes();
@@ -35,7 +36,8 @@ export default function Home() {
     fetchInventory({ lowStock: true });
     fetchBrewPlans();
     fetchActiveReminders();
-  }, [fetchRecipes, fetchBatches, fetchTastings, fetchUserStats, fetchInventory, fetchBrewPlans, fetchActiveReminders]);
+    fetchRecommendedRecipes('brewer1', false, 6);
+  }, [fetchRecipes, fetchBatches, fetchTastings, fetchUserStats, fetchInventory, fetchBrewPlans, fetchActiveReminders, fetchRecommendedRecipes]);
 
   const loadCalendarBatches = useCallback((year: number, month: number) => {
     const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
@@ -427,6 +429,8 @@ export default function Home() {
           )}
         </div>
       </div>
+
+      <RecipeRecommendations userId="brewer1" />
 
       <div className="bg-white rounded-xl p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">

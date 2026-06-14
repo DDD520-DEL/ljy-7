@@ -1248,3 +1248,25 @@ export interface BrewPostComment {
   content: string;
   createdAt: string;
 }
+
+export interface UserStylePreference {
+  style: string;
+  count: number;
+  source: 'tasting' | 'brewing';
+  avgScore?: number;
+}
+
+export interface RecommendedRecipe extends Recipe {
+  matchReason: string;
+  matchScore: number;
+  matchedStyle: string;
+  recommendationType: 'same_style' | 'similar_style';
+}
+
+export interface RecommendationResult {
+  userId: string;
+  generatedAt: string;
+  expiresAt: string;
+  topStyles: UserStylePreference[];
+  recommendations: RecommendedRecipe[];
+}

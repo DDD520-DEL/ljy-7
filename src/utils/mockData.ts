@@ -523,6 +523,7 @@ export const mockBatches: Batch[] = [
       { id: 'read-7', date: daysAgo(8), specificGravity: 1.013, temperature: 4, ph: 4.3, notes: '冷沉3天' }
     ],
     notes: '这次发酵温度控制得很好，酒花香气突出。下次可以考虑增加一点干投量。',
+    photos: [],
     createdAt: daysAgo(25),
     createdBy: 'currentUser'
   },
@@ -548,6 +549,7 @@ export const mockBatches: Batch[] = [
       { id: 'read-6', date: daysAgo(1), specificGravity: 1.015, temperature: 19, ph: 4.3, notes: '接近终点' }
     ],
     notes: '使用了新批次的US-05酵母，发酵启动很快。',
+    photos: [],
     createdAt: daysAgo(10),
     createdBy: 'currentUser'
   },
@@ -577,6 +579,7 @@ export const mockBatches: Batch[] = [
       { id: 'read-7', date: daysAgo(15), specificGravity: 1.022, temperature: 18, ph: 4.6, notes: '终点到达，进入熟成阶段' }
     ],
     notes: '高比重酿造成功！现在进入熟成阶段，计划瓶中熟成3个月。实际ABV约为9.1%。',
+    photos: [],
     createdAt: daysAgo(40),
     createdBy: '老王酿酒'
   },
@@ -600,6 +603,7 @@ export const mockBatches: Batch[] = [
       { id: 'read-6', date: daysAgo(0).slice(0, 10), specificGravity: 1.051, temperature: 20, ph: 5.0, notes: '比重反而上升，疑似感染' }
     ],
     notes: '糖化效率不错，比重略高于预期。但发酵似乎有问题，酵母可能活性不足，连续几天比重未下降。',
+    photos: [],
     createdAt: daysAgo(5),
     createdBy: '精酿入门者'
   },
@@ -614,6 +618,7 @@ export const mockBatches: Batch[] = [
     deviations: [],
     readings: [],
     notes: '计划本周末酿造，已备好原料。',
+    photos: [],
     createdAt: daysAgo(3),
     createdBy: 'currentUser'
   }

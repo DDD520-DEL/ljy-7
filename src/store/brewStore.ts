@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Recipe, Batch, Tasting, FermentationReading, ParameterDeviation, RecipeComparison, TastingComparison, UserBrewStats, RecipeComment, InventoryItem, InventoryCheckResult, IngredientShortage, IngredientType } from '../../shared/types.js';
+import type { Recipe, Batch, Tasting, FermentationReading, ParameterDeviation, RecipeComparison, TastingComparison, UserBrewStats, RecipeComment, InventoryItem, InventoryCheckResult, IngredientShortage, IngredientType, BrewStage, BrewPhoto } from '../../shared/types.js';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -43,13 +43,18 @@ interface BrewState {
   fetchBatches: (recipeId?: string) => Promise<void>;
   fetchBatchesByDateRange: (startDate: string, endDate: string) => Promise<void>;
   fetchBatchById: (id: string) => Promise<void>;
-  createBatchFromRecipe: (recipeId: string, batchData: Omit<Batch, 'id' | 'recipeId' | 'recipeVersion' | 'createdAt' | 'readings' | 'deviations'>) => Promise<{ batch: Batch; warnings: InventoryCheckResult['warnings'] } | null>;
+  createBatchFromRecipe: (recipeId: string, batchData: Omit<Batch, 'id' | 'recipeId' | 'recipeVersion' | 'createdAt' | 'readings' | 'deviations' | 'photos'>) => Promise<{ batch: Batch; warnings: InventoryCheckResult['warnings'] } | null>;
   updateBatch: (id: string, updates: Partial<Batch>) => Promise<Batch | null>;
   deleteBatch: (id: string) => Promise<boolean>;
   addReading: (batchId: string, reading: Omit<FermentationReading, 'id'>) => Promise<Batch | null>;
   updateReading: (batchId: string, readingId: string, updates: Partial<FermentationReading>) => Promise<Batch | null>;
   deleteReading: (batchId: string, readingId: string) => Promise<Batch | null>;
   addDeviation: (batchId: string, deviation: ParameterDeviation) => Promise<Batch | null>;
+
+  updateBatchNotes: (batchId: string, notes: string) => Promise<Batch | null>;
+  addPhoto: (batchId: string, photo: { url: string; stage: BrewStage; caption: string }) => Promise<Batch | null>;
+  updatePhoto: (batchId: string, photoId: string, updates: Partial<BrewPhoto>) => Promise<Batch | null>;
+  deletePhoto: (batchId: string, photoId: string) => Promise<Batch | null>;
 
   fetchTastings: (params?: { recipeId?: string; batchId?: string }) => Promise<void>;
   fetchTastingById: (id: string) => Promise<void>;
@@ -516,6 +521,101 @@ export const useBrewStore = create<BrewState>((set, _get) => ({
         return response.data;
       } else {
         set({ error: response.error || '添加偏差记录失败', loading: false });
+        return null;
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+      return null;
+    }
+  },
+
+  updateBatchNotes: async (batchId, notes) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<Batch>(`/batches/${batchId}/notes`, {
+        method: 'PUT',
+        body: JSON.stringify({ notes }),
+      });
+      if (response.success) {
+        set((state) => ({
+          batches: state.batches.map((b) => (b.id === batchId ? response.data : b)),
+          currentBatch: state.currentBatch?.id === batchId ? response.data : state.currentBatch,
+          loading: false,
+        }));
+        return response.data;
+      } else {
+        set({ error: response.error || '保存笔记失败', loading: false });
+        return null;
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+      return null;
+    }
+  },
+
+  addPhoto: async (batchId, photo) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<Batch>(`/batches/${batchId}/photos`, {
+        method: 'POST',
+        body: JSON.stringify(photo),
+      });
+      if (response.success) {
+        set((state) => ({
+          batches: state.batches.map((b) => (b.id === batchId ? response.data : b)),
+          currentBatch: state.currentBatch?.id === batchId ? response.data : state.currentBatch,
+          loading: false,
+        }));
+        return response.data;
+      } else {
+        set({ error: response.error || '添加照片失败', loading: false });
+        return null;
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+      return null;
+    }
+  },
+
+  updatePhoto: async (batchId, photoId, updates) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<Batch>(`/batches/${batchId}/photos/${photoId}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+      if (response.success) {
+        set((state) => ({
+          batches: state.batches.map((b) => (b.id === batchId ? response.data : b)),
+          currentBatch: state.currentBatch?.id === batchId ? response.data : state.currentBatch,
+          loading: false,
+        }));
+        return response.data;
+      } else {
+        set({ error: response.error || '更新照片失败', loading: false });
+        return null;
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+      return null;
+    }
+  },
+
+  deletePhoto: async (batchId, photoId) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<Batch>(`/batches/${batchId}/photos/${photoId}`, {
+        method: 'DELETE',
+      });
+      if (response.success) {
+        set((state) => ({
+          batches: state.batches.map((b) => (b.id === batchId ? response.data : b)),
+          currentBatch: state.currentBatch?.id === batchId ? response.data : state.currentBatch,
+          loading: false,
+        }));
+        return response.data;
+      } else {
+        set({ error: response.error || '删除照片失败', loading: false });
         return null;
       }
     } catch (_error) {

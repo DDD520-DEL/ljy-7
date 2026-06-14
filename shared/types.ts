@@ -101,6 +101,7 @@ export interface Batch {
   deviations: ParameterDeviation[];
   readings: FermentationReading[];
   notes: string;
+  photos: BrewPhoto[];
   createdAt: string;
   createdBy: string;
   costSnapshot?: CostSnapshot;
@@ -168,6 +169,23 @@ export interface TastingComparison {
 }
 
 export type BatchStatus = Batch['status'];
+
+export type BrewStage = 'mashing' | 'boiling' | 'fermentation' | 'bottling';
+
+export const BREW_STAGE_LABELS: Record<BrewStage, string> = {
+  mashing: '糖化',
+  boiling: '煮沸',
+  fermentation: '发酵',
+  bottling: '装瓶',
+};
+
+export interface BrewPhoto {
+  id: string;
+  url: string;
+  stage: BrewStage;
+  caption: string;
+  createdAt: string;
+}
 
 export const BATCH_STATUS_LABELS: Record<BatchStatus, string> = {
   planning: '计划中',

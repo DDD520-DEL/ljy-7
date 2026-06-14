@@ -145,4 +145,72 @@ router.post('/:id/deviations', (req: Request, res: Response) => {
   });
 });
 
+router.put('/:id/notes', (req: Request, res: Response) => {
+  const { notes } = req.body;
+  const batch = store.updateBatchNotes(req.params.id, notes || '');
+  if (!batch) {
+    return res.status(404).json({
+      success: false,
+      error: '批次不存在',
+    });
+  }
+  res.json({
+    success: true,
+    data: batch,
+  });
+});
+
+router.post('/:id/photos', (req: Request, res: Response) => {
+  const { url, stage, caption } = req.body;
+  if (!url || !stage) {
+    return res.status(400).json({
+      success: false,
+      error: '图片URL和阶段是必填项',
+    });
+  }
+  const batch = store.addPhoto(req.params.id, {
+    url,
+    stage,
+    caption: caption || '',
+  });
+  if (!batch) {
+    return res.status(404).json({
+      success: false,
+      error: '批次不存在',
+    });
+  }
+  res.status(201).json({
+    success: true,
+    data: batch,
+  });
+});
+
+router.put('/:id/photos/:photoId', (req: Request, res: Response) => {
+  const batch = store.updatePhoto(req.params.id, req.params.photoId, req.body);
+  if (!batch) {
+    return res.status(404).json({
+      success: false,
+      error: '批次或照片不存在',
+    });
+  }
+  res.json({
+    success: true,
+    data: batch,
+  });
+});
+
+router.delete('/:id/photos/:photoId', (req: Request, res: Response) => {
+  const batch = store.deletePhoto(req.params.id, req.params.photoId);
+  if (!batch) {
+    return res.status(404).json({
+      success: false,
+      error: '批次或照片不存在',
+    });
+  }
+  res.json({
+    success: true,
+    data: batch,
+  });
+});
+
 export default router;

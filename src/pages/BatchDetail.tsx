@@ -1,20 +1,79 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Plus, Calendar, AlertCircle, Thermometer, Droplets, Beaker, Trash2, Save, X, DollarSign, Edit2, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Plus, Calendar, AlertCircle, Thermometer, Droplets, Beaker, Trash2, Save, X, DollarSign, Edit2, AlertTriangle, Image as ImageIcon } from 'lucide-react';
 import { Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, ReferenceLine } from 'recharts';
 import { useBrewStore } from '../store/brewStore.js';
 import { BATCH_STATUS_LABELS } from '../../shared/types.js';
-import type { ParameterDeviation, BatchStatus } from '../../shared/types.js';
+import type { ParameterDeviation, BatchStatus, BrewStage } from '../../shared/types.js';
 import { cn } from '../lib/utils.js';
 import { formatCurrency, checkBatchAnomaly, FERMENTATION_ANOMALY_THRESHOLD, calculateExpectedGravity, formatGravity } from '../utils/calculations.js';
+import MarkdownEditor from '../components/MarkdownEditor.js';
+import BrewPhotoGallery from '../components/BrewPhotoGallery.js';
+
+function renderMarkdownToHtml(text: string): string {
+  let html = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  html = html.replace(/^### (.*$)/gim, '<h3 class="text-lg font-semibold text-gray-900 mt-4 mb-2">$1</h3>');
+  html = html.replace(/^## (.*$)/gim, '<h2 class="text-xl font-bold text-gray-900 mt-5 mb-3">$1</h2>');
+  html = html.replace(/^# (.*$)/gim, '<h1 class="text-2xl font-bold text-gray-900 mt-6 mb-4">$1</h1>');
+
+  html = html.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
+  html = html.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>');
+  html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+  html = html.replace(/___(.*?)___/g, '<strong><em>$1</em></strong>');
+  html = html.replace(/__(.*?)__/g, '<strong class="font-semibold">$1</strong>');
+  html = html.replace(/_(.*?)_/g, '<em>$1</em>');
+
+  html = html.replace(/`([^`]+)`/g, '<code class="bg-gray-100 px-1.5 py-0.5 rounded text-sm text-amber-700 font-mono">$1</code>');
+
+  html = html.replace(/```([\s\S]*?)```/g, '<pre class="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto my-4 text-sm font-mono"><code>$1</code></pre>');
+
+  html = html.replace(/^\s*[-*+]\s+(.*$)/gim, '<li class="ml-4 list-disc text-gray-700">$1</li>');
+  html = html.replace(/(<li[^>]*>.*<\/li>)(?=\s*<li|$)/gs, '<ul class="my-3 space-y-1">$1</ul>');
+
+  html = html.replace(/^\s*\d+\.\s+(.*$)/gim, '<li class="ml-4 list-decimal text-gray-700">$1</li>');
+  html = html.replace(/(<li[^>]*>.*<\/li>)(?=\s*\d+\.|$)/gs, '<ol class="my-3 space-y-1">$1</ol>');
+
+  html = html.replace(/^> (.*$)/gim, '<blockquote class="border-l-4 border-amber-400 pl-4 my-4 text-gray-600 italic">$1</blockquote>');
+
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-amber-600 hover:underline" target="_blank" rel="noopener noreferrer">$1</a>');
+
+  html = html.replace(/^---$/gim, '<hr class="my-6 border-gray-200" />');
+
+  html = html.replace(/\n\n/g, '</p><p class="my-3 text-gray-700">');
+  html = '<p class="my-3 text-gray-700">' + html + '</p>';
+
+  html = html.replace(/<p class="my-3 text-gray-700"><h/g, '<h');
+  html = html.replace(/<\/h\d><\/p>/g, (match) => match.replace('</p>', ''));
+  html = html.replace(/<p class="my-3 text-gray-700"><ul/g, '<ul');
+  html = html.replace(/<\/ul><\/p>/g, '</ul>');
+  html = html.replace(/<p class="my-3 text-gray-700"><ol/g, '<ol');
+  html = html.replace(/<\/ol><\/p>/g, '</ol>');
+  html = html.replace(/<p class="my-3 text-gray-700"><blockquote/g, '<blockquote');
+  html = html.replace(/<\/blockquote><\/p>/g, '</blockquote>');
+  html = html.replace(/<p class="my-3 text-gray-700"><pre/g, '<pre');
+  html = html.replace(/<\/pre><\/p>/g, '</pre>');
+  html = html.replace(/<p class="my-3 text-gray-700"><hr/g, '<hr');
+  html = html.replace(/<hr class="my-6 border-gray-200" \/><\/p>/g, '<hr class="my-6 border-gray-200" />');
+
+  html = html.replace(/\n/g, '<br />');
+
+  return html;
+}
 
 export default function BatchDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { currentBatch, currentRecipe, tastings, loading, error, fetchBatchById, fetchRecipeById, fetchTastings, updateBatch, addReading, addDeviation, deleteBatch, deleteReading } = useBrewStore();
-  const [activeTab, setActiveTab] = useState<'overview' | 'readings' | 'deviations' | 'tastings'>('overview');
+  const { currentBatch, currentRecipe, tastings, loading, error, fetchBatchById, fetchRecipeById, fetchTastings, updateBatch, addReading, addDeviation, deleteBatch, deleteReading, updateBatchNotes, addPhoto, updatePhoto, deletePhoto } = useBrewStore();
+  const [activeTab, setActiveTab] = useState<'overview' | 'readings' | 'deviations' | 'tastings' | 'photos'>('overview');
   const [showAddReading, setShowAddReading] = useState(false);
   const [showAddDeviation, setShowAddDeviation] = useState(false);
+  const [isEditingNotes, setIsEditingNotes] = useState(false);
+  const [notesDraft, setNotesDraft] = useState('');
+  const [isSavingNotes, setIsSavingNotes] = useState(false);
   const [isEditingActualCost, setIsEditingActualCost] = useState(false);
   const [actualCostInput, setActualCostInput] = useState('');
   const [newReading, setNewReading] = useState({
@@ -46,6 +105,22 @@ export default function BatchDetail() {
       fetchRecipeById(currentBatch.recipeId);
     }
   }, [currentBatch, currentRecipe, fetchRecipeById]);
+
+  const anomaly = useMemo(() => {
+    if (!currentBatch) {
+      return {
+        isAnomalous: false,
+        consecutiveCount: 0,
+        lastDeviations: [],
+        message: ''
+      };
+    }
+    return checkBatchAnomaly(currentBatch, currentRecipe || undefined);
+  }, [currentBatch, currentRecipe]);
+
+  const anomalyDates = useMemo(() => {
+    return new Set(anomaly.lastDeviations.map(d => d.date.slice(0, 10)));
+  }, [anomaly.lastDeviations]);
 
   const handleAddReading = async () => {
     if (!currentBatch || !newReading.date || !newReading.specificGravity) return;
@@ -113,6 +188,64 @@ export default function BatchDetail() {
     }
   };
 
+  const handleEditNotes = () => {
+    if (currentBatch) {
+      setNotesDraft(currentBatch.notes);
+      setIsEditingNotes(true);
+    }
+  };
+
+  const handleSaveNotes = async () => {
+    if (!currentBatch) return;
+    setIsSavingNotes(true);
+    try {
+      await updateBatchNotes(currentBatch.id, notesDraft);
+      setIsEditingNotes(false);
+    } finally {
+      setIsSavingNotes(false);
+    }
+  };
+
+  const handleCancelNotes = () => {
+    setIsEditingNotes(false);
+    setNotesDraft('');
+  };
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+    });
+  };
+
+  const handleAddPhoto = async (stage: BrewStage, file: File, caption: string) => {
+    if (!currentBatch) return;
+    try {
+      const base64Url = await fileToBase64(file);
+      await addPhoto(currentBatch.id, {
+        url: base64Url,
+        stage,
+        caption,
+      });
+    } catch (err) {
+      console.error('上传照片失败:', err);
+    }
+  };
+
+  const handleUpdatePhotoCaption = async (photoId: string, caption: string) => {
+    if (!currentBatch) return;
+    await updatePhoto(currentBatch.id, photoId, { caption });
+  };
+
+  const handleDeletePhoto = async (photoId: string) => {
+    if (!currentBatch) return;
+    if (confirm('确定要删除这张照片吗？')) {
+      await deletePhoto(currentBatch.id, photoId);
+    }
+  };
+
   if (loading && !currentBatch) return <div className="flex items-center justify-center h-64"><div className="animate-spin text-amber-600"><Droplets size={48} /></div></div>;
   if (error) return <div className="text-red-500 text-center py-8">{error}</div>;
   if (!currentBatch) return <div className="text-center py-16">批次不存在</div>;
@@ -142,14 +275,6 @@ export default function BatchDetail() {
   const abvActual = currentBatch.originalGravityActual && currentBatch.finalGravityActual
     ? ((currentBatch.originalGravityActual - currentBatch.finalGravityActual) * 131.25).toFixed(1)
     : null;
-
-  const anomaly = useMemo(() => {
-    return checkBatchAnomaly(currentBatch, currentRecipe || undefined);
-  }, [currentBatch, currentRecipe]);
-
-  const anomalyDates = useMemo(() => {
-    return new Set(anomaly.lastDeviations.map(d => d.date.slice(0, 10)));
-  }, [anomaly.lastDeviations]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -542,13 +667,13 @@ export default function BatchDetail() {
       )}
 
       <div className="border-b border-gray-200 mb-6">
-        <nav className="flex gap-8">
-          {(['overview', 'readings', 'deviations', 'tastings'] as const).map(tab => (
+        <nav className="flex gap-8 overflow-x-auto">
+          {(['overview', 'readings', 'deviations', 'tastings', 'photos'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={cn(
-                "pb-3 px-1 text-sm font-medium border-b-2 transition-colors",
+                "pb-3 px-1 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
                 activeTab === tab
                   ? "border-amber-600 text-amber-600"
                   : "border-transparent text-gray-500 hover:text-gray-700"
@@ -557,18 +682,78 @@ export default function BatchDetail() {
               {tab === 'overview' ? '概览' :
                tab === 'readings' ? `发酵读数 (${currentBatch.readings.length})` :
                tab === 'deviations' ? `参数偏差 (${currentBatch.deviations.length})` :
-               `品鉴记录 (${tastings.length})`}
+               tab === 'tastings' ? `品鉴记录 (${tastings.length})` :
+               `酿造照片 (${currentBatch.photos?.length || 0})`}
             </button>
           ))}
         </nav>
       </div>
 
       {activeTab === 'overview' && (
-        <div className="bg-white rounded-xl p-6 border border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">批次备注</h3>
-          <p className="text-gray-600 whitespace-pre-wrap">
-            {currentBatch.notes || '暂无备注'}
-          </p>
+        <div className="space-y-6">
+          <div className="bg-white rounded-xl p-6 border border-gray-100">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">酿造笔记</h3>
+              {!isEditingNotes && (
+                <button
+                  onClick={handleEditNotes}
+                  className="flex items-center gap-1.5 text-sm text-amber-600 hover:text-amber-700 font-medium"
+                >
+                  <Edit2 size={16} />
+                  编辑笔记
+                </button>
+              )}
+            </div>
+
+            {isEditingNotes ? (
+              <div className="space-y-4">
+                <MarkdownEditor
+                  value={notesDraft}
+                  onChange={setNotesDraft}
+                  placeholder="记录你的酿造过程、心得、发现..."
+                  minHeight="300px"
+                />
+                <div className="flex gap-3 justify-end">
+                  <button
+                    onClick={handleCancelNotes}
+                    className="px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                  >
+                    取消
+                  </button>
+                  <button
+                    onClick={handleSaveNotes}
+                    disabled={isSavingNotes}
+                    className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors font-medium flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {isSavingNotes ? (
+                      <>
+                        <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+                        保存中...
+                      </>
+                    ) : (
+                      <>
+                        <Save size={16} />
+                        保存笔记
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="prose prose-sm max-w-none">
+                {currentBatch.notes ? (
+                  <div
+                    className="text-gray-700 leading-relaxed"
+                    dangerouslySetInnerHTML={{
+                      __html: renderMarkdownToHtml(currentBatch.notes)
+                    }}
+                  />
+                ) : (
+                  <p className="text-gray-400 italic">暂无酿造笔记，点击右上角"编辑笔记"开始记录</p>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -940,6 +1125,26 @@ export default function BatchDetail() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {activeTab === 'photos' && (
+        <div>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <ImageIcon className="text-amber-600" size={22} />
+              酿造过程照片
+            </h3>
+            <span className="text-sm text-gray-500">
+              共 {currentBatch.photos?.length || 0} 张照片
+            </span>
+          </div>
+          <BrewPhotoGallery
+            photos={currentBatch.photos || []}
+            onAddPhoto={handleAddPhoto}
+            onDeletePhoto={handleDeletePhoto}
+            onUpdateCaption={handleUpdatePhotoCaption}
+          />
         </div>
       )}
     </div>

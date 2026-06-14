@@ -2,6 +2,7 @@ import express, { type Request, type Response } from 'express';
 import { analyzeWater } from '../../src/utils/calculations.js';
 import { MINERAL_COMPOUNDS, BEER_STYLE_WATER_TARGETS } from '../../shared/types.js';
 import type { WaterAnalysisResult, WaterProfile } from '../../shared/types.js';
+import { store } from '../data/store.js';
 
 const router = express.Router();
 
@@ -139,13 +140,34 @@ router.get('/minerals', (req: Request, res: Response) => {
   }
 });
 
-let savedWaterProfiles: WaterProfile[] = [];
-
 router.get('/profiles', (req: Request, res: Response) => {
   try {
+    const profiles = store.getAllWaterProfiles();
     res.json({
       success: true,
-      data: savedWaterProfiles,
+      data: profiles,
+    });
+  } catch (error) {
+    console.error('获取水源配置错误:', error);
+    res.status(500).json({
+      success: false,
+      error: '获取水源配置失败',
+    });
+  }
+});
+
+router.get('/profiles/:id', (req: Request, res: Response) => {
+  try {
+    const profile = store.getWaterProfileById(req.params.id);
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        error: '水源配置不存在',
+      });
+    }
+    res.json({
+      success: true,
+      data: profile,
     });
   } catch (error) {
     console.error('获取水源配置错误:', error);
@@ -167,22 +189,27 @@ router.post('/profiles', (req: Request, res: Response) => {
       });
     }
 
-    const newProfile: WaterProfile = {
-      id: `water-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-      name,
-      calcium,
-      magnesium,
-      sodium,
-      sulfate,
-      chloride,
-      bicarbonate,
-      ph,
-      createdAt: new Date().toISOString(),
-      createdBy: 'currentUser',
-      note,
-    };
+    const requiredFields = ['calcium', 'magnesium', 'sodium', 'sulfate', 'chloride', 'bicarbonate'];
+    for (const field of requiredFields) {
+      if ((req.body as Record<string, unknown>)[field] === undefined || (req.body as Record<string, unknown>)[field] === null) {
+        return res.status(400).json({
+          success: false,
+          error: `缺少必要字段: ${field}`,
+        });
+      }
+    }
 
-    savedWaterProfiles.push(newProfile);
+    const newProfile = store.createWaterProfile({
+      name,
+      calcium: Number(calcium),
+      magnesium: Number(magnesium),
+      sodium: Number(sodium),
+      sulfate: Number(sulfate),
+      chloride: Number(chloride),
+      bicarbonate: Number(bicarbonate),
+      ph: ph !== undefined ? Number(ph) : undefined,
+      note,
+    });
 
     res.status(201).json({
       success: true,
@@ -197,17 +224,38 @@ router.post('/profiles', (req: Request, res: Response) => {
   }
 });
 
-router.delete('/profiles/:id', (req: Request, res: Response) => {
+router.put('/profiles/:id', (req: Request, res: Response) => {
   try {
-    const index = savedWaterProfiles.findIndex(p => p.id === req.params.id);
-    if (index === -1) {
+    const updates = req.body;
+    const updated = store.updateWaterProfile(req.params.id, updates);
+    if (!updated) {
       return res.status(404).json({
         success: false,
         error: '水源配置不存在',
       });
     }
+    res.json({
+      success: true,
+      data: updated,
+    });
+  } catch (error) {
+    console.error('更新水源配置错误:', error);
+    res.status(500).json({
+      success: false,
+      error: '更新水源配置失败',
+    });
+  }
+});
 
-    savedWaterProfiles.splice(index, 1);
+router.delete('/profiles/:id', (req: Request, res: Response) => {
+  try {
+    const deleted = store.deleteWaterProfile(req.params.id);
+    if (!deleted) {
+      return res.status(404).json({
+        success: false,
+        error: '水源配置不存在',
+      });
+    }
 
     res.json({
       success: true,

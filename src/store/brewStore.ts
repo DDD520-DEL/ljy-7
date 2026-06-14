@@ -112,7 +112,9 @@ interface BrewState {
   fetchWaterStyleTargets: () => Promise<void>;
   fetchMineralCompounds: () => Promise<void>;
   fetchWaterProfiles: () => Promise<void>;
+  fetchWaterProfileById: (id: string) => Promise<WaterProfile | null>;
   saveWaterProfile: (profile: Omit<WaterProfile, 'id' | 'createdAt' | 'createdBy'>) => Promise<WaterProfile | null>;
+  updateWaterProfile: (id: string, updates: Partial<WaterProfile>) => Promise<WaterProfile | null>;
   deleteWaterProfile: (id: string) => Promise<boolean>;
   clearWaterAnalysis: () => void;
 
@@ -1353,6 +1355,48 @@ export const useBrewStore = create<BrewState>((set, _get) => ({
         return response.data;
       } else {
         set({ error: response.error || '保存水源配置失败', loading: false });
+        return null;
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+      return null;
+    }
+  },
+
+  fetchWaterProfileById: async (id) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<WaterProfile>(`/water/profiles/${id}`);
+      if (response.success) {
+        set({ loading: false });
+        return response.data;
+      } else {
+        set({ error: response.error || '获取水源配置失败', loading: false });
+        return null;
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+      return null;
+    }
+  },
+
+  updateWaterProfile: async (id, updates) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<WaterProfile>(`/water/profiles/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+      if (response.success) {
+        set((state) => ({
+          waterProfiles: state.waterProfiles.map((p) =>
+            p.id === id ? response.data : p
+          ),
+          loading: false,
+        }));
+        return response.data;
+      } else {
+        set({ error: response.error || '更新水源配置失败', loading: false });
         return null;
       }
     } catch (_error) {

@@ -1,4 +1,4 @@
-import type { Recipe, MaltItem, HopAddition, Yeast, CostSnapshot, Batch, FermentationReading } from '../../shared/types.js';
+import type { Recipe, MaltItem, HopAddition, Yeast, CostSnapshot, Batch, FermentationReading, WaterProfile, BeerStyleWaterTarget, WaterAnalysisResult, MineralAddition, MineralCompound } from '../../shared/types.js';
 
 export const FERMENTATION_ANOMALY_THRESHOLD = 0.008;
 export const EXPECTED_FERMENTATION_DAYS = 14;
@@ -283,4 +283,338 @@ export const getFermentationProgress = (readings: Array<{date: string}>): number
   const lastDate = new Date(readings[readings.length - 1].date);
   const days = Math.ceil((lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24));
   return Math.min(Math.round((days / 14) * 100), 100);
+};
+
+export const getBeerStyleWaterTarget = (style: string, mineralCompounds: MineralCompound[], styleTargets: BeerStyleWaterTarget[]): BeerStyleWaterTarget | undefined => {
+  return styleTargets.find(t => t.style.toLowerCase() === style.toLowerCase());
+};
+
+export const calculateWaterDeficit = (
+  sourceWater: Pick<WaterProfile, 'calcium' | 'magnesium' | 'sodium' | 'sulfate' | 'chloride' | 'bicarbonate'>,
+  target: BeerStyleWaterTarget
+): {
+  calcium: number;
+  magnesium: number;
+  sodium: number;
+  sulfate: number;
+  chloride: number;
+  bicarbonate: number;
+} => {
+  const targetValues = {
+    calcium: target.calcium.ideal ?? (target.calcium.min + target.calcium.max) / 2,
+    magnesium: target.magnesium.ideal ?? (target.magnesium.min + target.magnesium.max) / 2,
+    sodium: target.sodium.ideal ?? (target.sodium.min + target.sodium.max) / 2,
+    sulfate: target.sulfate.ideal ?? (target.sulfate.min + target.sulfate.max) / 2,
+    chloride: target.chloride.ideal ?? (target.chloride.min + target.chloride.max) / 2,
+    bicarbonate: target.bicarbonate.ideal ?? (target.bicarbonate.min + target.bicarbonate.max) / 2,
+  };
+
+  return {
+    calcium: Math.max(0, targetValues.calcium - sourceWater.calcium),
+    magnesium: Math.max(0, targetValues.magnesium - sourceWater.magnesium),
+    sodium: Math.max(0, targetValues.sodium - sourceWater.sodium),
+    sulfate: Math.max(0, targetValues.sulfate - sourceWater.sulfate),
+    chloride: Math.max(0, targetValues.chloride - sourceWater.chloride),
+    bicarbonate: Math.max(0, targetValues.bicarbonate - sourceWater.bicarbonate),
+  };
+};
+
+export const calculateMineralAdditions = (
+  sourceWater: Pick<WaterProfile, 'calcium' | 'magnesium' | 'sodium' | 'sulfate' | 'chloride' | 'bicarbonate'>,
+  target: BeerStyleWaterTarget,
+  batchSizeLiters: number,
+  mineralCompounds: MineralCompound[]
+): MineralAddition[] => {
+  const additions: MineralAddition[] = [];
+  const deficit = calculateWaterDeficit(sourceWater, target);
+  
+  const remainingDeficit = { ...deficit };
+  const currentValues = { ...sourceWater };
+
+  const addMineral = (
+    mineral: MineralCompound,
+    deficitIon: keyof typeof remainingDeficit,
+    secondaryIon?: keyof typeof remainingDeficit
+  ) => {
+    if (remainingDeficit[deficitIon] <= 0) return;
+    
+    const ionPerGram = mineral[`${deficitIon}PerGram` as keyof MineralCompound] as number;
+    if (ionPerGram <= 0) return;
+
+    let gramsNeeded = (remainingDeficit[deficitIon] * batchSizeLiters) / ionPerGram;
+    let maxGrams = Infinity;
+    
+    if (secondaryIon) {
+      const secondaryIonPerGram = mineral[`${secondaryIon}PerGram` as keyof MineralCompound] as number;
+      if (secondaryIonPerGram > 0) {
+        if (remainingDeficit[secondaryIon] > 0) {
+          const gramsBasedOnSecondary = (remainingDeficit[secondaryIon] * batchSizeLiters) / secondaryIonPerGram;
+          maxGrams = Math.min(maxGrams, gramsBasedOnSecondary);
+        } else {
+          const targetMax = (target[secondaryIon] as { min: number; max: number; ideal?: number }).max;
+          const maxAllowed = Math.max(0, targetMax - currentValues[secondaryIon]);
+          if (maxAllowed > 0) {
+            const maxGramsForSecondary = (maxAllowed * batchSizeLiters) / secondaryIonPerGram;
+            maxGrams = Math.min(maxGrams, maxGramsForSecondary);
+          } else {
+            return;
+          }
+        }
+      }
+    }
+
+    const allIons: Array<keyof typeof currentValues> = ['calcium', 'magnesium', 'sodium', 'sulfate', 'chloride', 'bicarbonate'];
+    for (const ion of allIons) {
+      const ionPerGramForCheck = mineral[`${ion}PerGram` as keyof MineralCompound] as number;
+      if (ionPerGramForCheck > 0 && ion !== deficitIon && ion !== secondaryIon) {
+        const targetMax = (target[ion] as { min: number; max: number; ideal?: number }).max;
+        const maxAllowed = Math.max(0, targetMax - currentValues[ion]);
+        if (maxAllowed > 0) {
+          const maxGramsForIon = (maxAllowed * batchSizeLiters) / ionPerGramForCheck;
+          maxGrams = Math.min(maxGrams, maxGramsForIon);
+        } else {
+          return;
+        }
+      }
+    }
+
+    gramsNeeded = Math.min(gramsNeeded, maxGrams);
+    gramsNeeded = Math.max(0, Math.round(gramsNeeded * 100) / 100);
+
+    if (gramsNeeded <= 0) return;
+
+    const maxSolubility = mineral.solubility * batchSizeLiters;
+    if (gramsNeeded > maxSolubility) {
+      gramsNeeded = Math.round(maxSolubility * 100) / 100;
+    }
+
+    const contributions = {
+      calcium: (gramsNeeded * mineral.calciumPerGram) / batchSizeLiters,
+      magnesium: (gramsNeeded * mineral.magnesiumPerGram) / batchSizeLiters,
+      sodium: (gramsNeeded * mineral.sodiumPerGram) / batchSizeLiters,
+      sulfate: (gramsNeeded * mineral.sulfatePerGram) / batchSizeLiters,
+      chloride: (gramsNeeded * mineral.chloridePerGram) / batchSizeLiters,
+      bicarbonate: (gramsNeeded * mineral.bicarbonatePerGram) / batchSizeLiters,
+    };
+
+    currentValues.calcium += contributions.calcium;
+    currentValues.magnesium += contributions.magnesium;
+    currentValues.sodium += contributions.sodium;
+    currentValues.sulfate += contributions.sulfate;
+    currentValues.chloride += contributions.chloride;
+    currentValues.bicarbonate += contributions.bicarbonate;
+
+    remainingDeficit.calcium = Math.max(0, remainingDeficit.calcium - contributions.calcium);
+    remainingDeficit.magnesium = Math.max(0, remainingDeficit.magnesium - contributions.magnesium);
+    remainingDeficit.sodium = Math.max(0, remainingDeficit.sodium - contributions.sodium);
+    remainingDeficit.sulfate = Math.max(0, remainingDeficit.sulfate - contributions.sulfate);
+    remainingDeficit.chloride = Math.max(0, remainingDeficit.chloride - contributions.chloride);
+    remainingDeficit.bicarbonate = Math.max(0, remainingDeficit.bicarbonate - contributions.bicarbonate);
+
+    additions.push({
+      mineral,
+      amount: gramsNeeded,
+      unit: mineral.unit,
+      contributions,
+    });
+  };
+
+  const gypsum = mineralCompounds.find(m => m.formula === 'CaSO₄·2H₂O');
+  if (gypsum) {
+    addMineral(gypsum, 'sulfate', 'calcium');
+  }
+
+  const cacl2 = mineralCompounds.find(m => m.formula === 'CaCl₂·2H₂O');
+  if (cacl2) {
+    addMineral(cacl2, 'chloride', 'calcium');
+  }
+
+  const mgso4 = mineralCompounds.find(m => m.formula === 'MgSO₄·7H₂O');
+  if (mgso4) {
+    addMineral(mgso4, 'magnesium', 'sulfate');
+  }
+
+  const nahco3 = mineralCompounds.find(m => m.formula === 'NaHCO₃');
+  if (nahco3) {
+    addMineral(nahco3, 'bicarbonate', 'sodium');
+  }
+
+  const nacl = mineralCompounds.find(m => m.formula === 'NaCl');
+  if (nacl && remainingDeficit.chloride > 0) {
+    addMineral(nacl, 'chloride', 'sodium');
+  }
+
+  if (remainingDeficit.sulfate > 0 && gypsum) {
+    addMineral(gypsum, 'sulfate');
+  }
+  if (remainingDeficit.chloride > 0 && cacl2) {
+    addMineral(cacl2, 'chloride');
+  }
+
+  return additions;
+};
+
+export const calculateFinalEstimate = (
+  sourceWater: Pick<WaterProfile, 'calcium' | 'magnesium' | 'sodium' | 'sulfate' | 'chloride' | 'bicarbonate'>,
+  additions: MineralAddition[]
+): {
+  calcium: number;
+  magnesium: number;
+  sodium: number;
+  sulfate: number;
+  chloride: number;
+  bicarbonate: number;
+} => {
+  const final = {
+    calcium: sourceWater.calcium,
+    magnesium: sourceWater.magnesium,
+    sodium: sourceWater.sodium,
+    sulfate: sourceWater.sulfate,
+    chloride: sourceWater.chloride,
+    bicarbonate: sourceWater.bicarbonate,
+  };
+
+  additions.forEach(addition => {
+    final.calcium += addition.contributions.calcium;
+    final.magnesium += addition.contributions.magnesium;
+    final.sodium += addition.contributions.sodium;
+    final.sulfate += addition.contributions.sulfate;
+    final.chloride += addition.contributions.chloride;
+    final.bicarbonate += addition.contributions.bicarbonate;
+  });
+
+  return {
+    calcium: Math.round(final.calcium),
+    magnesium: Math.round(final.magnesium),
+    sodium: Math.round(final.sodium),
+    sulfate: Math.round(final.sulfate),
+    chloride: Math.round(final.chloride),
+    bicarbonate: Math.round(final.bicarbonate),
+  };
+};
+
+export const generateWaterWarnings = (
+  sourceWater: Pick<WaterProfile, 'calcium' | 'magnesium' | 'sodium' | 'sulfate' | 'chloride' | 'bicarbonate' | 'ph'>,
+  target: BeerStyleWaterTarget,
+  additions: MineralAddition[],
+  finalEstimate: ReturnType<typeof calculateFinalEstimate>
+): string[] => {
+  const warnings: string[] = [];
+
+  if (sourceWater.calcium > target.calcium.max) {
+    warnings.push(`水源钙含量(${sourceWater.calcium}ppm)超过目标上限(${target.calcium.max}ppm)，考虑使用RO反渗透水稀释`);
+  }
+  if (sourceWater.bicarbonate > target.bicarbonate.max * 1.5) {
+    warnings.push(`水源碳酸氢盐过高(${sourceWater.bicarbonate}ppm)，考虑使用酸处理或稀释降低`);
+  }
+  if (sourceWater.sodium > 100 && target.sodium.max < 50) {
+    warnings.push(`水源钠含量过高(${sourceWater.sodium}ppm)，不适合${target.style}风格，建议使用纯净水`);
+  }
+
+  const totalAdditions = additions.reduce((sum, a) => sum + a.amount, 0);
+  if (totalAdditions > 30) {
+    warnings.push(`矿物质添加总量较高(${totalAdditions.toFixed(1)}g)，请确保充分溶解`);
+  }
+
+  const sourceIons = sourceWater.calcium + sourceWater.magnesium + sourceWater.sodium + sourceWater.sulfate + sourceWater.chloride + sourceWater.bicarbonate;
+  if (sourceIons < 20 && sourceIons > 0) {
+    warnings.push('水源离子含量很低，接近纯净水，矿物质添加效果会更可预测');
+  }
+
+  if (finalEstimate.sulfate > 0 && finalEstimate.chloride > 0) {
+    const ratio = finalEstimate.sulfate / finalEstimate.chloride;
+    if (target.style.includes('IPA') || target.style.includes('Pale Ale')) {
+      if (ratio < 1.5) {
+        warnings.push(`硫酸盐/氯化物比例(${ratio.toFixed(2)})偏低，${target.style}风格建议1.5-3:1以突出酒花苦味`);
+      }
+    }
+    if (target.style.includes('Stout') || target.style.includes('Porter')) {
+      if (ratio > 1) {
+        warnings.push(`硫酸盐/氯化物比例(${ratio.toFixed(2)})偏高，${target.style}风格建议0.5-1:1以突出麦芽甜感`);
+      }
+    }
+  }
+
+  return warnings;
+};
+
+export const generateWaterSuggestions = (
+  sourceWater: Pick<WaterProfile, 'calcium' | 'magnesium' | 'sodium' | 'sulfate' | 'chloride' | 'bicarbonate' | 'ph'>,
+  target: BeerStyleWaterTarget
+): string[] => {
+  const suggestions: string[] = [...target.tips];
+
+  if (sourceWater.bicarbonate > target.bicarbonate.max && target.bicarbonate.max < 50) {
+    suggestions.push('建议在糖化前添加乳酸或磷酸降低醪液pH值');
+    suggestions.push('可以考虑添加1-2ml 88%乳酸/10L水来中和碳酸氢根');
+  }
+
+  if (sourceWater.calcium < target.calcium.min) {
+    suggestions.push('钙离子对酶活性和酵母絮凝很重要，确保添加足够的钙源');
+  }
+
+  if (target.style === 'Gose') {
+    suggestions.push('Gose的咸感来自高钠含量，可在煮沸后期添加食盐');
+  }
+
+  suggestions.push('矿物质建议在糖化前添加到糖化水中，确保充分溶解');
+  suggestions.push('建议使用精确的电子秤称量矿物质，用量±0.1g精度');
+
+  return suggestions;
+};
+
+export const analyzeWater = (
+  sourceWater: Pick<WaterProfile, 'calcium' | 'magnesium' | 'sodium' | 'sulfate' | 'chloride' | 'bicarbonate' | 'ph'>,
+  style: string,
+  batchSizeLiters: number,
+  mineralCompounds: MineralCompound[],
+  styleTargets: BeerStyleWaterTarget[]
+): WaterAnalysisResult | null => {
+  const target = getBeerStyleWaterTarget(style, mineralCompounds, styleTargets);
+  if (!target) return null;
+
+  const targetValues = {
+    calcium: target.calcium.ideal ?? (target.calcium.min + target.calcium.max) / 2,
+    magnesium: target.magnesium.ideal ?? (target.magnesium.min + target.magnesium.max) / 2,
+    sodium: target.sodium.ideal ?? (target.sodium.min + target.sodium.max) / 2,
+    sulfate: target.sulfate.ideal ?? (target.sulfate.min + target.sulfate.max) / 2,
+    chloride: target.chloride.ideal ?? (target.chloride.min + target.chloride.max) / 2,
+    bicarbonate: target.bicarbonate.ideal ?? (target.bicarbonate.min + target.bicarbonate.max) / 2,
+  };
+
+  const currentValues = {
+    calcium: sourceWater.calcium,
+    magnesium: sourceWater.magnesium,
+    sodium: sourceWater.sodium,
+    sulfate: sourceWater.sulfate,
+    chloride: sourceWater.chloride,
+    bicarbonate: sourceWater.bicarbonate,
+  };
+
+  const deficits = calculateWaterDeficit(sourceWater, target);
+  const additions = calculateMineralAdditions(sourceWater, target, batchSizeLiters, mineralCompounds);
+  const finalEstimate = calculateFinalEstimate(sourceWater, additions);
+  const warnings = generateWaterWarnings(sourceWater, target, additions, finalEstimate);
+  const suggestions = generateWaterSuggestions(sourceWater, target);
+
+  return {
+    sourceWater: {
+      calcium: sourceWater.calcium,
+      magnesium: sourceWater.magnesium,
+      sodium: sourceWater.sodium,
+      sulfate: sourceWater.sulfate,
+      chloride: sourceWater.chloride,
+      bicarbonate: sourceWater.bicarbonate,
+      ph: sourceWater.ph,
+    },
+    targetStyle: target,
+    batchSize: batchSizeLiters,
+    currentValues,
+    targetValues,
+    deficits,
+    additions,
+    finalEstimate,
+    warnings,
+    suggestions,
+  };
 };

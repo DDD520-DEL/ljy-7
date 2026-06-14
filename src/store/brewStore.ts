@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Recipe, Batch, Tasting, FermentationReading, ParameterDeviation, RecipeComparison, TastingComparison, UserBrewStats, RecipeComment, InventoryItem, InventoryCheckResult, IngredientShortage, IngredientType, BrewStage, BrewPhoto, Equipment, EquipmentType, BrewStep } from '../../shared/types.js';
+import type { Recipe, Batch, Tasting, FermentationReading, ParameterDeviation, RecipeComparison, TastingComparison, UserBrewStats, RecipeComment, InventoryItem, InventoryCheckResult, IngredientShortage, IngredientType, BrewStage, BrewPhoto, Equipment, EquipmentType, BrewStep, WaterProfile, WaterAnalysisResult, BeerStyleWaterTarget, MineralCompound } from '../../shared/types.js';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -29,6 +29,10 @@ interface BrewState {
   error: string | null;
   inventoryShortages: IngredientShortage[];
   inventoryWarnings: InventoryCheckResult['warnings'];
+  waterProfiles: WaterProfile[];
+  waterAnalysisResult: WaterAnalysisResult | null;
+  waterStyleTargets: BeerStyleWaterTarget[];
+  mineralCompounds: MineralCompound[];
 
   fetchRecipes: (params?: { public?: boolean; user?: string }) => Promise<void>;
   fetchRecipeById: (id: string) => Promise<void>;
@@ -94,6 +98,24 @@ interface BrewState {
   updateEquipment: (id: string, updates: Partial<Equipment>) => Promise<Equipment | null>;
   deleteEquipment: (id: string) => Promise<boolean>;
 
+  analyzeWater: (params: {
+    calcium: number;
+    magnesium: number;
+    sodium: number;
+    sulfate: number;
+    chloride: number;
+    bicarbonate: number;
+    ph?: number;
+    style: string;
+    batchSize: number;
+  }) => Promise<WaterAnalysisResult | null>;
+  fetchWaterStyleTargets: () => Promise<void>;
+  fetchMineralCompounds: () => Promise<void>;
+  fetchWaterProfiles: () => Promise<void>;
+  saveWaterProfile: (profile: Omit<WaterProfile, 'id' | 'createdAt' | 'createdBy'>) => Promise<WaterProfile | null>;
+  deleteWaterProfile: (id: string) => Promise<boolean>;
+  clearWaterAnalysis: () => void;
+
   clearCurrent: () => void;
   setError: (error: string | null) => void;
 }
@@ -135,6 +157,10 @@ export const useBrewStore = create<BrewState>((set, _get) => ({
   error: null,
   inventoryShortages: [],
   inventoryWarnings: [],
+  waterProfiles: [],
+  waterAnalysisResult: null,
+  waterStyleTargets: [],
+  mineralCompounds: [],
 
   fetchRecipes: async (params) => {
     set({ loading: true, error: null });
@@ -1248,6 +1274,117 @@ export const useBrewStore = create<BrewState>((set, _get) => ({
       set({ error: '网络错误', loading: false });
       return false;
     }
+  },
+
+  analyzeWater: async (params) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<WaterAnalysisResult>('/water/analyze', {
+        method: 'POST',
+        body: JSON.stringify(params),
+      });
+      if (response.success) {
+        set({ waterAnalysisResult: response.data, loading: false });
+        return response.data;
+      } else {
+        set({ error: response.error || '水质分析失败', loading: false });
+        return null;
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+      return null;
+    }
+  },
+
+  fetchWaterStyleTargets: async () => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<BeerStyleWaterTarget[]>('/water/styles');
+      if (response.success) {
+        set({ waterStyleTargets: response.data, loading: false });
+      } else {
+        set({ error: response.error || '获取水化学区间失败', loading: false });
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+    }
+  },
+
+  fetchMineralCompounds: async () => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<MineralCompound[]>('/water/minerals');
+      if (response.success) {
+        set({ mineralCompounds: response.data, loading: false });
+      } else {
+        set({ error: response.error || '获取矿物质数据失败', loading: false });
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+    }
+  },
+
+  fetchWaterProfiles: async () => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<WaterProfile[]>('/water/profiles');
+      if (response.success) {
+        set({ waterProfiles: response.data, loading: false });
+      } else {
+        set({ error: response.error || '获取水源配置失败', loading: false });
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+    }
+  },
+
+  saveWaterProfile: async (profile) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<WaterProfile>('/water/profiles', {
+        method: 'POST',
+        body: JSON.stringify(profile),
+      });
+      if (response.success) {
+        set((state) => ({
+          waterProfiles: [...state.waterProfiles, response.data],
+          loading: false,
+        }));
+        return response.data;
+      } else {
+        set({ error: response.error || '保存水源配置失败', loading: false });
+        return null;
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+      return null;
+    }
+  },
+
+  deleteWaterProfile: async (id) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<{ message: string }>(`/water/profiles/${id}`, {
+        method: 'DELETE',
+      });
+      if (response.success) {
+        set((state) => ({
+          waterProfiles: state.waterProfiles.filter((p) => p.id !== id),
+          loading: false,
+        }));
+        return true;
+      } else {
+        set({ error: response.error || '删除水源配置失败', loading: false });
+        return false;
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+      return false;
+    }
+  },
+
+  clearWaterAnalysis: () => {
+    set({ waterAnalysisResult: null });
   },
 
   clearCurrent: () => {

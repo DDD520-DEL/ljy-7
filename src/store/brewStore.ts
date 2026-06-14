@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Recipe, Batch, Tasting, FermentationReading, ParameterDeviation, RecipeComparison, TastingComparison, UserBrewStats, RecipeComment, InventoryItem, InventoryCheckResult, IngredientShortage, IngredientType, BrewStage, BrewPhoto, Equipment, EquipmentType, BrewStep, WaterProfile, WaterAnalysisResult, BeerStyleWaterTarget, MineralCompound, BrewPlan } from '../../shared/types.js';
+import type { Recipe, Batch, Tasting, FermentationReading, ParameterDeviation, RecipeComparison, TastingComparison, UserBrewStats, RecipeComment, InventoryItem, InventoryCheckResult, IngredientShortage, IngredientType, BrewStage, BrewPhoto, Equipment, EquipmentType, BrewStep, WaterProfile, WaterAnalysisResult, BeerStyleWaterTarget, MineralCompound, BrewPlan, ProcurementRecord, ProcurementPriceTrend } from '../../shared/types.js';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -35,6 +35,8 @@ interface BrewState {
   mineralCompounds: MineralCompound[];
   brewPlans: BrewPlan[];
   activeReminders: BrewPlan[];
+  procurements: ProcurementRecord[];
+  priceTrends: ProcurementPriceTrend[];
 
   fetchRecipes: (params?: { public?: boolean; user?: string }) => Promise<void>;
   fetchRecipeById: (id: string) => Promise<void>;
@@ -130,6 +132,12 @@ interface BrewState {
   updateBrewPlan: (id: string, updates: Partial<BrewPlan>) => Promise<BrewPlan | null>;
   deleteBrewPlan: (id: string) => Promise<boolean>;
 
+  fetchProcurements: (params?: { type?: IngredientType }) => Promise<void>;
+  fetchPriceTrends: (type: IngredientType) => Promise<void>;
+  createProcurement: (record: Omit<ProcurementRecord, 'id' | 'createdAt' | 'totalPrice'>) => Promise<ProcurementRecord | null>;
+  updateProcurement: (id: string, updates: Partial<Omit<ProcurementRecord, 'id' | 'createdAt'>>) => Promise<ProcurementRecord | null>;
+  deleteProcurement: (id: string) => Promise<boolean>;
+
   clearCurrent: () => void;
   setError: (error: string | null) => void;
 }
@@ -177,6 +185,8 @@ export const useBrewStore = create<BrewState>((set, _get) => ({
   mineralCompounds: [],
   brewPlans: [],
   activeReminders: [],
+  procurements: [],
+  priceTrends: [],
 
   fetchRecipes: async (params) => {
     set({ loading: true, error: null });
@@ -1600,6 +1610,105 @@ export const useBrewStore = create<BrewState>((set, _get) => ({
         return true;
       } else {
         set({ error: response.error || '删除酿造计划失败', loading: false });
+        return false;
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+      return false;
+    }
+  },
+
+  fetchProcurements: async (params) => {
+    set({ loading: true, error: null });
+    try {
+      const query = new URLSearchParams();
+      if (params?.type) query.append('type', params.type);
+      const queryString = query.toString();
+      const response = await apiFetch<ProcurementRecord[]>(`/procurements${queryString ? `?${queryString}` : ''}`);
+      if (response.success) {
+        set({ procurements: response.data, loading: false });
+      } else {
+        set({ error: response.error || '获取采购记录失败', loading: false });
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+    }
+  },
+
+  fetchPriceTrends: async (type) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<ProcurementPriceTrend[]>(`/procurements/trends/${type}`);
+      if (response.success) {
+        set({ priceTrends: response.data, loading: false });
+      } else {
+        set({ error: response.error || '获取价格趋势失败', loading: false });
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+    }
+  },
+
+  createProcurement: async (record) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<ProcurementRecord>('/procurements', {
+        method: 'POST',
+        body: JSON.stringify(record),
+      });
+      if (response.success) {
+        set((state) => ({
+          procurements: [response.data, ...state.procurements],
+          loading: false,
+        }));
+        return response.data;
+      } else {
+        set({ error: response.error || '创建采购记录失败', loading: false });
+        return null;
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+      return null;
+    }
+  },
+
+  updateProcurement: async (id, updates) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<ProcurementRecord>(`/procurements/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+      if (response.success) {
+        set((state) => ({
+          procurements: state.procurements.map((p) => p.id === id ? response.data : p),
+          loading: false,
+        }));
+        return response.data;
+      } else {
+        set({ error: response.error || '更新采购记录失败', loading: false });
+        return null;
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+      return null;
+    }
+  },
+
+  deleteProcurement: async (id) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<{ message: string }>(`/procurements/${id}`, {
+        method: 'DELETE',
+      });
+      if (response.success) {
+        set((state) => ({
+          procurements: state.procurements.filter((p) => p.id !== id),
+          loading: false,
+        }));
+        return true;
+      } else {
+        set({ error: response.error || '删除采购记录失败', loading: false });
         return false;
       }
     } catch (_error) {

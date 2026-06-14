@@ -600,6 +600,27 @@ export const MINERAL_COMPOUNDS: MineralCompound[] = [
   }
 ];
 
+export interface ProcurementRecord {
+  id: string;
+  supplierName: string;
+  ingredientType: IngredientType;
+  ingredientName: string;
+  unitPrice: number;
+  quantity: number;
+  totalPrice: number;
+  purchaseDate: string;
+  inventoryItemId?: string;
+  createdAt: string;
+  note?: string;
+}
+
+export interface ProcurementPriceTrend {
+  date: string;
+  unitPrice: number;
+  supplierName: string;
+  ingredientName: string;
+}
+
 export const BEER_STYLE_WATER_TARGETS: BeerStyleWaterTarget[] = [
   {
     style: 'IPA',

@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from "react-router-dom";
-import { Beer, Home as HomeIcon, ListTodo, Star, Users, Package, Settings, Droplets } from "lucide-react";
+import { Beer, Home as HomeIcon, ListTodo, Star, Users, Package, Settings, Droplets, ShoppingCart } from "lucide-react";
 import Home from "@/pages/Home";
 import Recipes from "@/pages/Recipes";
 import RecipeDetail from "@/pages/RecipeDetail";
@@ -13,6 +13,7 @@ import Tastings from "@/pages/Tastings";
 import TastingEdit from "@/pages/TastingEdit";
 import Community from "@/pages/Community";
 import Inventory from "@/pages/Inventory";
+import Procurement from "@/pages/Procurement";
 import Equipment from "@/pages/Equipment";
 import WaterAnalysis from "@/pages/WaterAnalysis";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,7 @@ const navItems = [
   { path: "/water", label: "水质分析", icon: Droplets },
   { path: "/equipment", label: "设备管理", icon: Settings },
   { path: "/inventory", label: "原料库存", icon: Package },
+  { path: "/procurement", label: "采购记录", icon: ShoppingCart },
   { path: "/tastings", label: "品鉴评分", icon: Star },
   { path: "/community", label: "社区分享", icon: Users },
 ];
@@ -88,6 +90,7 @@ export default function App() {
             <Route path="/water" element={<WaterAnalysis />} />
             <Route path="/equipment" element={<Equipment />} />
             <Route path="/inventory" element={<Inventory />} />
+            <Route path="/procurement" element={<Procurement />} />
             <Route path="/tastings" element={<Tastings />} />
             <Route path="/tastings/new" element={<TastingEdit />} />
             <Route path="/tastings/:id" element={<Tastings />} />

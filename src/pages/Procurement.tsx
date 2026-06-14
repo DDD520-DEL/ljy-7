@@ -145,12 +145,13 @@ export default function Procurement() {
   }, [typeFilter, fetchPriceTrends]);
 
   useEffect(() => {
-    const unit = INGREDIENT_UNIT_LABELS[formData.ingredientType];
     const matchingInventory = inventory.find(
       i => i.type === formData.ingredientType && i.name === formData.ingredientName
     );
     if (matchingInventory) {
       setFormData(prev => ({ ...prev, inventoryItemId: matchingInventory.id }));
+    } else {
+      setFormData(prev => ({ ...prev, inventoryItemId: '' }));
     }
   }, [formData.ingredientType, formData.ingredientName, inventory]);
 

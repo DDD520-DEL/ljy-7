@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Search, ArrowLeft, Wine, MapPin, Calendar, Beer, AlertCircle, Package } from 'lucide-react';
+import { Search, ArrowLeft, Wine, MapPin, Calendar, Beer, AlertCircle, Package, PlusCircle } from 'lucide-react';
 import { useBrewStore } from '../store/brewStore.js';
 import { BATCH_STATUS_LABELS } from '../../shared/types.js';
 import type { Batch, Recipe } from '../../shared/types.js';
@@ -234,12 +234,19 @@ export default function TraceCodeLookup() {
             </div>
           )}
 
-          <div className="flex gap-3 justify-end">
+          <div className="flex flex-wrap gap-3 justify-end">
             <button
               onClick={() => navigate(`/batches/${lookupResult.batch.id}`)}
-              className="px-6 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors font-medium"
+              className="px-6 py-3 border border-amber-200 text-amber-700 rounded-lg hover:bg-amber-50 transition-colors font-medium"
             >
               查看批次详情
+            </button>
+            <button
+              onClick={() => navigate(`/tastings/new?traceCode=${encodeURIComponent(lookupResult.batch.traceCode || '')}`)}
+              className="px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg hover:from-amber-600 hover:to-orange-600 transition-all font-medium flex items-center gap-2 shadow-sm"
+            >
+              <PlusCircle size={18} />
+              为此批次创建品鉴记录
             </button>
           </div>
         </div>

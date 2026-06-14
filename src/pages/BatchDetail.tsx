@@ -119,6 +119,7 @@ export default function BatchDetail() {
   });
   const [showBottlingForm, setShowBottlingForm] = useState(false);
   const [copiedTraceCode, setCopiedTraceCode] = useState(false);
+  const [bottlingError, setBottlingError] = useState<string | null>(null);
   const [bottlingForm, setBottlingForm] = useState({
     totalBottles: '',
     bottleSpec: '',
@@ -194,18 +195,43 @@ export default function BatchDetail() {
 
   const handleCreateBottling = async () => {
     if (!currentBatch) return;
-    if (!bottlingForm.totalBottles || !bottlingForm.bottleSpec || !bottlingForm.capColor || !bottlingForm.storageLocation) {
+
+    if (currentBatch.bottlingRecord) {
+      setBottlingError('该批次已完成装瓶，不能重复操作');
       return;
     }
+
+    setBottlingError(null);
+    const errors: string[] = [];
+
+    if (!bottlingForm.totalBottles || parseInt(bottlingForm.totalBottles) <= 0) {
+      errors.push('装瓶总数必须大于0');
+    }
+    if (!bottlingForm.bottleSpec.trim()) {
+      errors.push('请填写瓶型规格');
+    }
+    if (!bottlingForm.capColor.trim()) {
+      errors.push('请选择或填写瓶盖颜色');
+    }
+    if (!bottlingForm.storageLocation.trim()) {
+      errors.push('请填写储存位置');
+    }
+
+    if (errors.length > 0) {
+      setBottlingError(errors.join('；'));
+      return;
+    }
+
     const result = await createBottlingRecord(currentBatch.id, {
       totalBottles: parseInt(bottlingForm.totalBottles),
-      bottleSpec: bottlingForm.bottleSpec,
-      capColor: bottlingForm.capColor,
-      storageLocation: bottlingForm.storageLocation,
+      bottleSpec: bottlingForm.bottleSpec.trim(),
+      capColor: bottlingForm.capColor.trim(),
+      storageLocation: bottlingForm.storageLocation.trim(),
       notes: bottlingForm.notes,
     });
     if (result) {
       setShowBottlingForm(false);
+      setBottlingError(null);
       setBottlingForm({
         totalBottles: '',
         bottleSpec: '',
@@ -944,15 +970,26 @@ export default function BatchDetail() {
               {showBottlingForm && (
                 <div className="border-t border-gray-100 pt-4 mt-4">
                   <h4 className="font-semibold text-gray-900 mb-4">填写装瓶信息</h4>
+                  {(bottlingError || error) && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+                      <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                      <div className="text-red-700 text-sm">{bottlingError || error}</div>
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">装瓶总数 *</label>
                       <input
                         type="number"
+                        min="1"
                         value={bottlingForm.totalBottles}
-                        onChange={(e) => setBottlingForm({ ...bottlingForm, totalBottles: e.target.value })}
+                        onChange={(e) => { setBottlingForm({ ...bottlingForm, totalBottles: e.target.value }); if (bottlingError) setBottlingError(null); }}
                         placeholder="如: 24"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent ${
+                          bottlingError && (!bottlingForm.totalBottles || parseInt(bottlingForm.totalBottles) <= 0)
+                            ? 'border-red-300 bg-red-50'
+                            : 'border-gray-200'
+                        }`}
                       />
                     </div>
                     <div>
@@ -960,9 +997,13 @@ export default function BatchDetail() {
                       <input
                         type="text"
                         value={bottlingForm.bottleSpec}
-                        onChange={(e) => setBottlingForm({ ...bottlingForm, bottleSpec: e.target.value })}
+                        onChange={(e) => { setBottlingForm({ ...bottlingForm, bottleSpec: e.target.value }); if (bottlingError) setBottlingError(null); }}
                         placeholder="如: 330ml 长脖瓶"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent ${
+                          bottlingError && !bottlingForm.bottleSpec.trim()
+                            ? 'border-red-300 bg-red-50'
+                            : 'border-gray-200'
+                        }`}
                       />
                     </div>
                     <div>
@@ -971,15 +1012,19 @@ export default function BatchDetail() {
                         <input
                           type="color"
                           value={bottlingForm.capColor || '#000000'}
-                          onChange={(e) => setBottlingForm({ ...bottlingForm, capColor: e.target.value })}
+                          onChange={(e) => { setBottlingForm({ ...bottlingForm, capColor: e.target.value }); if (bottlingError) setBottlingError(null); }}
                           className="w-10 h-10 border border-gray-200 rounded cursor-pointer"
                         />
                         <input
                           type="text"
                           value={bottlingForm.capColor}
-                          onChange={(e) => setBottlingForm({ ...bottlingForm, capColor: e.target.value })}
+                          onChange={(e) => { setBottlingForm({ ...bottlingForm, capColor: e.target.value }); if (bottlingError) setBottlingError(null); }}
                           placeholder="如: #c0392b"
-                          className="flex-1 px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                          className={`flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent ${
+                            bottlingError && !bottlingForm.capColor.trim()
+                              ? 'border-red-300 bg-red-50'
+                              : 'border-gray-200'
+                          }`}
                         />
                       </div>
                     </div>
@@ -988,9 +1033,13 @@ export default function BatchDetail() {
                       <input
                         type="text"
                         value={bottlingForm.storageLocation}
-                        onChange={(e) => setBottlingForm({ ...bottlingForm, storageLocation: e.target.value })}
+                        onChange={(e) => { setBottlingForm({ ...bottlingForm, storageLocation: e.target.value }); if (bottlingError) setBottlingError(null); }}
                         placeholder="如: 酒窖A区第2层"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent ${
+                          bottlingError && !bottlingForm.storageLocation.trim()
+                            ? 'border-red-300 bg-red-50'
+                            : 'border-gray-200'
+                        }`}
                       />
                     </div>
                   </div>

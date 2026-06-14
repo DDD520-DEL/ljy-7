@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Beer, ListTodo, Star, Users, TrendingUp, Clock, AlertCircle, CheckCircle, Plus, AlertTriangle, X, Package, Scale, Leaf, Beaker } from 'lucide-react';
+import { Beer, ListTodo, Star, Users, TrendingUp, Clock, AlertCircle, CheckCircle, Plus, AlertTriangle, X, Package, Scale, Leaf, Beaker, Bell, CalendarClock } from 'lucide-react';
 import { useBrewStore } from '../store/brewStore.js';
 import { BATCH_STATUS_LABELS, INGREDIENT_TYPE_LABELS, IngredientType, InventoryItem } from '../../shared/types.js';
 import { formatDate, formatABV, getDaysSince, getAnomalousBatches, formatGravity } from '../utils/calculations.js';
@@ -25,7 +25,7 @@ const statusIcons: Record<string, React.ReactNode> = {
 };
 
 export default function Home() {
-  const { recipes, batches, calendarBatches, tastings, userBrewStats, inventory, loading, fetchRecipes, fetchBatches, fetchBatchesByDateRange, fetchTastings, fetchUserStats, fetchInventory } = useBrewStore();
+  const { recipes, batches, calendarBatches, tastings, userBrewStats, inventory, brewPlans, activeReminders, loading, fetchRecipes, fetchBatches, fetchBatchesByDateRange, fetchTastings, fetchUserStats, fetchInventory, fetchBrewPlans, fetchActiveReminders } = useBrewStore();
 
   useEffect(() => {
     fetchRecipes();
@@ -33,14 +33,17 @@ export default function Home() {
     fetchTastings();
     fetchUserStats('brewer1');
     fetchInventory({ lowStock: true });
-  }, [fetchRecipes, fetchBatches, fetchTastings, fetchUserStats, fetchInventory]);
+    fetchBrewPlans();
+    fetchActiveReminders();
+  }, [fetchRecipes, fetchBatches, fetchTastings, fetchUserStats, fetchInventory, fetchBrewPlans, fetchActiveReminders]);
 
   const loadCalendarBatches = useCallback((year: number, month: number) => {
     const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
     const lastDay = new Date(year, month + 1, 0).getDate();
     const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
     fetchBatchesByDateRange(startDate, endDate);
-  }, [fetchBatchesByDateRange]);
+    fetchBrewPlans({ startDate, endDate });
+  }, [fetchBatchesByDateRange, fetchBrewPlans]);
 
   useEffect(() => {
     const now = new Date();
@@ -92,6 +95,51 @@ export default function Home() {
           </Link>
         </div>
       </div>
+
+      {activeReminders.length > 0 && (
+        <div className="bg-gradient-to-r from-amber-500 to-yellow-500 rounded-2xl shadow-lg overflow-hidden">
+          <div className="p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                <Bell size={22} className="text-white" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-white">酿造计划提醒</h2>
+                <p className="text-amber-100 text-sm">
+                  今日有 <span className="font-bold text-white">{activeReminders.length}</span> 条提醒
+                </p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              {activeReminders.map((plan) => (
+                <div
+                  key={plan.id}
+                  className="bg-white/15 backdrop-blur-sm rounded-xl p-3 border border-white/20"
+                >
+                  <div className="flex items-start gap-3">
+                    <CalendarClock className="w-5 h-5 text-white flex-shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-semibold text-white">{plan.title}</span>
+                        <span className="text-xs bg-white/20 text-white px-2 py-0.5 rounded-full">
+                          {plan.date}
+                        </span>
+                      </div>
+                      <p className="text-sm text-amber-100 flex items-center gap-1">
+                        <Bell className="w-3.5 h-3.5" />
+                        {plan.reminderText}
+                      </p>
+                      {plan.description && (
+                        <p className="text-xs text-amber-200/80 mt-1">{plan.description}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {userBrewStats && (
         <div className="bg-white rounded-2xl p-6 shadow-sm">
@@ -282,7 +330,7 @@ export default function Home() {
         })}
       </div>
 
-      <BrewCalendar batches={calendarBatches} onMonthChange={loadCalendarBatches} />
+      <BrewCalendar batches={calendarBatches} brewPlans={brewPlans} onMonthChange={loadCalendarBatches} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl p-6 shadow-sm">

@@ -384,6 +384,18 @@ export interface BrewStep {
   notes?: string;
 }
 
+export interface BrewPlan {
+  id: string;
+  date: string;
+  title: string;
+  description: string;
+  reminderDaysBefore: number;
+  reminderText: string;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string;
+}
+
 export interface WaterProfile {
   id: string;
   name: string;

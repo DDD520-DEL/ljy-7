@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Recipe, Batch, Tasting, FermentationReading, ParameterDeviation, RecipeComparison, TastingComparison, UserBrewStats, RecipeComment, InventoryItem, InventoryCheckResult, IngredientShortage, IngredientType, BrewStage, BrewPhoto, Equipment, EquipmentType, BrewStep, WaterProfile, WaterAnalysisResult, BeerStyleWaterTarget, MineralCompound } from '../../shared/types.js';
+import type { Recipe, Batch, Tasting, FermentationReading, ParameterDeviation, RecipeComparison, TastingComparison, UserBrewStats, RecipeComment, InventoryItem, InventoryCheckResult, IngredientShortage, IngredientType, BrewStage, BrewPhoto, Equipment, EquipmentType, BrewStep, WaterProfile, WaterAnalysisResult, BeerStyleWaterTarget, MineralCompound, BrewPlan } from '../../shared/types.js';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -33,6 +33,8 @@ interface BrewState {
   waterAnalysisResult: WaterAnalysisResult | null;
   waterStyleTargets: BeerStyleWaterTarget[];
   mineralCompounds: MineralCompound[];
+  brewPlans: BrewPlan[];
+  activeReminders: BrewPlan[];
 
   fetchRecipes: (params?: { public?: boolean; user?: string }) => Promise<void>;
   fetchRecipeById: (id: string) => Promise<void>;
@@ -118,6 +120,12 @@ interface BrewState {
   deleteWaterProfile: (id: string) => Promise<boolean>;
   clearWaterAnalysis: () => void;
 
+  fetchBrewPlans: (params?: { startDate?: string; endDate?: string }) => Promise<void>;
+  fetchActiveReminders: (today?: string) => Promise<void>;
+  createBrewPlan: (plan: Omit<BrewPlan, 'id' | 'createdAt' | 'updatedAt'>) => Promise<BrewPlan | null>;
+  updateBrewPlan: (id: string, updates: Partial<BrewPlan>) => Promise<BrewPlan | null>;
+  deleteBrewPlan: (id: string) => Promise<boolean>;
+
   clearCurrent: () => void;
   setError: (error: string | null) => void;
 }
@@ -163,6 +171,8 @@ export const useBrewStore = create<BrewState>((set, _get) => ({
   waterAnalysisResult: null,
   waterStyleTargets: [],
   mineralCompounds: [],
+  brewPlans: [],
+  activeReminders: [],
 
   fetchRecipes: async (params) => {
     set({ loading: true, error: null });
@@ -1429,6 +1439,105 @@ export const useBrewStore = create<BrewState>((set, _get) => ({
 
   clearWaterAnalysis: () => {
     set({ waterAnalysisResult: null });
+  },
+
+  fetchBrewPlans: async (params) => {
+    set({ loading: true, error: null });
+    try {
+      const query = new URLSearchParams();
+      if (params?.startDate) query.append('startDate', params.startDate);
+      if (params?.endDate) query.append('endDate', params.endDate);
+      const queryString = query.toString();
+      const response = await apiFetch<BrewPlan[]>(`/brew-plans${queryString ? `?${queryString}` : ''}`);
+      if (response.success) {
+        set({ brewPlans: response.data, loading: false });
+      } else {
+        set({ error: response.error || '获取酿造计划失败', loading: false });
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+    }
+  },
+
+  fetchActiveReminders: async (today) => {
+    try {
+      const todayStr = today || new Date().toISOString().split('T')[0];
+      const response = await apiFetch<BrewPlan[]>(`/brew-plans/reminders?today=${todayStr}`);
+      if (response.success) {
+        set({ activeReminders: response.data });
+      }
+    } catch (_error) {
+      // silent fail for reminders
+    }
+  },
+
+  createBrewPlan: async (plan) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<BrewPlan>('/brew-plans', {
+        method: 'POST',
+        body: JSON.stringify(plan),
+      });
+      if (response.success) {
+        set((state) => ({
+          brewPlans: [...state.brewPlans, response.data],
+          loading: false,
+        }));
+        return response.data;
+      } else {
+        set({ error: response.error || '创建酿造计划失败', loading: false });
+        return null;
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+      return null;
+    }
+  },
+
+  updateBrewPlan: async (id, updates) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<BrewPlan>(`/brew-plans/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+      if (response.success) {
+        set((state) => ({
+          brewPlans: state.brewPlans.map((p) => (p.id === id ? response.data : p)),
+          loading: false,
+        }));
+        return response.data;
+      } else {
+        set({ error: response.error || '更新酿造计划失败', loading: false });
+        return null;
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+      return null;
+    }
+  },
+
+  deleteBrewPlan: async (id) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<{ message: string }>(`/brew-plans/${id}`, {
+        method: 'DELETE',
+      });
+      if (response.success) {
+        set((state) => ({
+          brewPlans: state.brewPlans.filter((p) => p.id !== id),
+          activeReminders: state.activeReminders.filter((p) => p.id !== id),
+          loading: false,
+        }));
+        return true;
+      } else {
+        set({ error: response.error || '删除酿造计划失败', loading: false });
+        return false;
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+      return false;
+    }
   },
 
   clearCurrent: () => {

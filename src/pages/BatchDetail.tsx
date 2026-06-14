@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Plus, Calendar, AlertCircle, Thermometer, Droplets, Beaker, Trash2, Save, X, DollarSign, Edit2, AlertTriangle, Image as ImageIcon, Settings, Droplets as DropletsIcon, Flame, Refrigerator, Cog, Wrench, ListTodo } from 'lucide-react';
+import { ArrowLeft, Plus, Calendar, AlertCircle, Thermometer, Droplets, Beaker, Trash2, Save, X, DollarSign, Edit2, AlertTriangle, Image as ImageIcon, Settings, Droplets as DropletsIcon, Flame, Refrigerator, Cog, Wrench, ListTodo, Wine, MapPin, Copy, Check } from 'lucide-react';
 import { Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, ReferenceLine } from 'recharts';
 import { useBrewStore } from '../store/brewStore.js';
 import { BATCH_STATUS_LABELS, EQUIPMENT_TYPE_LABELS } from '../../shared/types.js';
@@ -95,7 +95,7 @@ function renderMarkdownToHtml(text: string): string {
 export default function BatchDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { currentBatch, currentRecipe, tastings, equipment, loading, error, fetchBatchById, fetchRecipeById, fetchTastings, fetchEquipment, updateBatch, addReading, addDeviation, deleteBatch, deleteReading, updateBatchNotes, addPhoto, updatePhoto, deletePhoto, generateBrewSteps, updateBrewStep, startBrewStep, completeBrewStep, skipBrewStep, resetBrewSteps } = useBrewStore();
+  const { currentBatch, currentRecipe, tastings, equipment, loading, error, fetchBatchById, fetchRecipeById, fetchTastings, fetchEquipment, updateBatch, addReading, addDeviation, deleteBatch, deleteReading, updateBatchNotes, addPhoto, updatePhoto, deletePhoto, generateBrewSteps, updateBrewStep, startBrewStep, completeBrewStep, skipBrewStep, resetBrewSteps, createBottlingRecord } = useBrewStore();
   const [activeTab, setActiveTab] = useState<'overview' | 'checklist' | 'readings' | 'deviations' | 'tastings' | 'photos'>('overview');
   const [showAddReading, setShowAddReading] = useState(false);
   const [showAddDeviation, setShowAddDeviation] = useState(false);
@@ -116,6 +116,15 @@ export default function BatchDetail() {
     expected: 0,
     actual: 0,
     unit: '',
+  });
+  const [showBottlingForm, setShowBottlingForm] = useState(false);
+  const [copiedTraceCode, setCopiedTraceCode] = useState(false);
+  const [bottlingForm, setBottlingForm] = useState({
+    totalBottles: '',
+    bottleSpec: '',
+    capColor: '',
+    storageLocation: '',
+    notes: '',
   });
 
   useEffect(() => {
@@ -181,6 +190,41 @@ export default function BatchDetail() {
       actual: 0,
       unit: '',
     });
+  };
+
+  const handleCreateBottling = async () => {
+    if (!currentBatch) return;
+    if (!bottlingForm.totalBottles || !bottlingForm.bottleSpec || !bottlingForm.capColor || !bottlingForm.storageLocation) {
+      return;
+    }
+    const result = await createBottlingRecord(currentBatch.id, {
+      totalBottles: parseInt(bottlingForm.totalBottles),
+      bottleSpec: bottlingForm.bottleSpec,
+      capColor: bottlingForm.capColor,
+      storageLocation: bottlingForm.storageLocation,
+      notes: bottlingForm.notes,
+    });
+    if (result) {
+      setShowBottlingForm(false);
+      setBottlingForm({
+        totalBottles: '',
+        bottleSpec: '',
+        capColor: '',
+        storageLocation: '',
+        notes: '',
+      });
+    }
+  };
+
+  const handleCopyTraceCode = async () => {
+    if (!currentBatch?.traceCode) return;
+    try {
+      await navigator.clipboard.writeText(currentBatch.traceCode);
+      setCopiedTraceCode(true);
+      setTimeout(() => setCopiedTraceCode(false), 2000);
+    } catch (_err) {
+      console.error('复制失败');
+    }
   };
 
   const handleStatusChange = async (status: string) => {
@@ -786,6 +830,206 @@ export default function BatchDetail() {
 
       {activeTab === 'overview' && (
         <div className="space-y-6">
+          {currentBatch.bottlingRecord ? (
+            <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl p-6 border border-emerald-200">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-emerald-600 rounded-lg flex items-center justify-center">
+                    <Wine className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-emerald-900">装瓶记录</h3>
+                    <p className="text-sm text-emerald-600">已完成装瓶</p>
+                  </div>
+                </div>
+                <span className="px-3 py-1 bg-emerald-600 text-white text-sm font-medium rounded-full">
+                  已装瓶
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div className="bg-white rounded-lg p-3 shadow-sm">
+                  <div className="text-xs text-gray-500 mb-1">装瓶总数</div>
+                  <div className="text-xl font-bold text-emerald-700">
+                    {currentBatch.bottlingRecord.totalBottles} <span className="text-sm font-normal">瓶</span>
+                  </div>
+                </div>
+                <div className="bg-white rounded-lg p-3 shadow-sm">
+                  <div className="text-xs text-gray-500 mb-1">瓶型规格</div>
+                  <div className="text-lg font-semibold text-gray-800">
+                    {currentBatch.bottlingRecord.bottleSpec}
+                  </div>
+                </div>
+                <div className="bg-white rounded-lg p-3 shadow-sm">
+                  <div className="text-xs text-gray-500 mb-1">瓶盖颜色</div>
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-5 h-5 rounded-full border-2 border-gray-200"
+                      style={{ backgroundColor: currentBatch.bottlingRecord.capColor }}
+                    />
+                    <span className="text-sm font-medium text-gray-700">
+                      {currentBatch.bottlingRecord.capColor}
+                    </span>
+                  </div>
+                </div>
+                <div className="bg-white rounded-lg p-3 shadow-sm">
+                  <div className="text-xs text-gray-500 mb-1 flex items-center gap-1">
+                    <MapPin size={12} />
+                    储存位置
+                  </div>
+                  <div className="text-sm font-semibold text-gray-800">
+                    {currentBatch.bottlingRecord.storageLocation}
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-lg p-4 shadow-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-700">批次追溯码</span>
+                  <button
+                    onClick={handleCopyTraceCode}
+                    className="flex items-center gap-1 text-sm text-emerald-600 hover:text-emerald-700 transition-colors"
+                  >
+                    {copiedTraceCode ? (
+                      <>
+                        <Check size={14} />
+                        已复制
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={14} />
+                        复制
+                      </>
+                    )}
+                  </button>
+                </div>
+                <div className="font-mono text-lg font-bold text-emerald-700 bg-emerald-50 px-3 py-2 rounded-lg border border-emerald-200">
+                  {currentBatch.traceCode}
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  装瓶时间: {new Date(currentBatch.bottlingRecord.bottledAt).toLocaleString('zh-CN')}
+                </p>
+              </div>
+
+              {currentBatch.bottlingRecord.notes && (
+                <div className="mt-4 bg-white rounded-lg p-4 shadow-sm">
+                  <div className="text-sm font-medium text-gray-700 mb-2">装瓶备注</div>
+                  <p className="text-sm text-gray-600">{currentBatch.bottlingRecord.notes}</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl p-6 border border-gray-100">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
+                    <Wine className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">装瓶记录</h3>
+                    <p className="text-sm text-gray-500">记录装瓶信息并生成追溯码</p>
+                  </div>
+                </div>
+                {!showBottlingForm && (
+                  <button
+                    onClick={() => setShowBottlingForm(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors font-medium"
+                  >
+                    <Plus size={18} />
+                    记录装瓶
+                  </button>
+                )}
+              </div>
+
+              {showBottlingForm && (
+                <div className="border-t border-gray-100 pt-4 mt-4">
+                  <h4 className="font-semibold text-gray-900 mb-4">填写装瓶信息</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">装瓶总数 *</label>
+                      <input
+                        type="number"
+                        value={bottlingForm.totalBottles}
+                        onChange={(e) => setBottlingForm({ ...bottlingForm, totalBottles: e.target.value })}
+                        placeholder="如: 24"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">瓶型规格 *</label>
+                      <input
+                        type="text"
+                        value={bottlingForm.bottleSpec}
+                        onChange={(e) => setBottlingForm({ ...bottlingForm, bottleSpec: e.target.value })}
+                        placeholder="如: 330ml 长脖瓶"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">瓶盖颜色 *</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="color"
+                          value={bottlingForm.capColor || '#000000'}
+                          onChange={(e) => setBottlingForm({ ...bottlingForm, capColor: e.target.value })}
+                          className="w-10 h-10 border border-gray-200 rounded cursor-pointer"
+                        />
+                        <input
+                          type="text"
+                          value={bottlingForm.capColor}
+                          onChange={(e) => setBottlingForm({ ...bottlingForm, capColor: e.target.value })}
+                          placeholder="如: #c0392b"
+                          className="flex-1 px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">储存位置 *</label>
+                      <input
+                        type="text"
+                        value={bottlingForm.storageLocation}
+                        onChange={(e) => setBottlingForm({ ...bottlingForm, storageLocation: e.target.value })}
+                        placeholder="如: 酒窖A区第2层"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">备注</label>
+                    <textarea
+                      value={bottlingForm.notes}
+                      onChange={(e) => setBottlingForm({ ...bottlingForm, notes: e.target.value })}
+                      placeholder="装瓶过程中的注意事项..."
+                      rows={2}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div className="flex gap-3 justify-end">
+                    <button
+                      onClick={() => setShowBottlingForm(false)}
+                      className="px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                    >
+                      取消
+                    </button>
+                    <button
+                      onClick={handleCreateBottling}
+                      className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors font-medium flex items-center gap-2"
+                    >
+                      <Save size={16} />
+                      确认装瓶
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {!showBottlingForm && (
+                <p className="text-sm text-gray-400 italic">
+                  尚未记录装瓶信息，点击右上角"记录装瓶"开始
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="bg-white rounded-xl p-6 border border-gray-100">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">酿造笔记</h3>

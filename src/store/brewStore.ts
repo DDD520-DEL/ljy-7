@@ -70,9 +70,13 @@ interface BrewState {
   skipBrewStep: (batchId: string, stepId: string) => Promise<Batch | null>;
   resetBrewSteps: (batchId: string) => Promise<Batch | null>;
 
+  createBottlingRecord: (batchId: string, data: { totalBottles: number; bottleSpec: string; capColor: string; storageLocation: string; notes?: string }) => Promise<Batch | null>;
+  lookupTraceCode: (traceCode: string) => Promise<{ batch: Batch; recipe?: Recipe } | null>;
+
   fetchTastings: (params?: { recipeId?: string; batchId?: string }) => Promise<void>;
   fetchTastingById: (id: string) => Promise<void>;
   createTasting: (tasting: Omit<Tasting, 'id'>) => Promise<Tasting | null>;
+  createTastingWithTraceCode: (traceCode: string, tastingData: Omit<Tasting, 'id' | 'batchId' | 'recipeId' | 'traceCode'>) => Promise<Tasting | null>;
   updateTasting: (id: string, updates: Partial<Tasting>) => Promise<Tasting | null>;
   deleteTasting: (id: string) => Promise<boolean>;
   compareTastings: (ids: string[]) => Promise<void>;
@@ -816,6 +820,47 @@ export const useBrewStore = create<BrewState>((set, _get) => ({
     }
   },
 
+  createBottlingRecord: async (batchId, data) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<Batch>(`/batches/${batchId}/bottling`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+      if (response.success) {
+        set((state) => ({
+          batches: state.batches.map((b) => (b.id === batchId ? response.data : b)),
+          currentBatch: state.currentBatch?.id === batchId ? response.data : state.currentBatch,
+          loading: false,
+        }));
+        return response.data;
+      } else {
+        set({ error: response.error || '创建装瓶记录失败', loading: false });
+        return null;
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+      return null;
+    }
+  },
+
+  lookupTraceCode: async (traceCode) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<{ batch: Batch; recipe?: Recipe }>(`/batches/trace/${encodeURIComponent(traceCode)}`);
+      if (response.success) {
+        set({ loading: false });
+        return response.data;
+      } else {
+        set({ error: response.error || '追溯码无效', loading: false });
+        return null;
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+      return null;
+    }
+  },
+
   fetchTastings: async (params) => {
     set({ loading: true, error: null });
     try {
@@ -854,6 +899,29 @@ export const useBrewStore = create<BrewState>((set, _get) => ({
       const response = await apiFetch<Tasting>('/tastings', {
         method: 'POST',
         body: JSON.stringify(tasting),
+      });
+      if (response.success) {
+        set((state) => ({
+          tastings: [...state.tastings, response.data],
+          loading: false,
+        }));
+        return response.data;
+      } else {
+        set({ error: response.error || '创建品鉴记录失败', loading: false });
+        return null;
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+      return null;
+    }
+  },
+
+  createTastingWithTraceCode: async (traceCode, tastingData) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<Tasting>('/tastings/by-trace-code', {
+        method: 'POST',
+        body: JSON.stringify({ traceCode, ...tastingData }),
       });
       if (response.success) {
         set((state) => ({

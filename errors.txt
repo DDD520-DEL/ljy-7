@@ -1,0 +1,13 @@
+﻿api/routes/community.ts(72,26): error TS2339: Property 'getRecipeComments' does not exist on type 'FileStore'.
+api/routes/community.ts(98,29): error TS2339: Property 'hasUserBrewedRecipe' does not exist on type 'FileStore'.
+api/routes/community.ts(99,27): error TS2339: Property 'addRecipeComment' does not exist on type 'FileStore'.
+api/routes/community.ts(121,25): error TS2339: Property 'deleteRecipeComment' does not exist on type 'FileStore'.
+api/routes/community.ts(138,27): error TS2339: Property 'hasUserBrewedRecipe' does not exist on type 'FileStore'.
+api/routes/equipment.ts(14,23): error TS2551: Property 'getEquipmentByUser' does not exist on type 'FileStore'. Did you mean 'getEquipmentByType'?
+api/routes/inventory.ts(26,23): error TS2339: Property 'checkInventoryForRecipe' does not exist on type 'FileStore'.
+api/routes/recipes.ts(39,26): error TS2339: Property 'getRecipeVersions' does not exist on type 'FileStore'.
+api/routes/recipes.ts(47,25): error TS2339: Property 'getRecipeLineage' does not exist on type 'FileStore'.
+api/routes/recipes.ts(105,28): error TS2339: Property 'createNewVersion' does not exist on type 'FileStore'.
+api/routes/recipes.ts(119,28): error TS2339: Property 'compareRecipes' does not exist on type 'FileStore'.
+api/routes/recipes.ts(140,24): error TS2339: Property 'forkRecipe' does not exist on type 'FileStore'.
+api/routes/stats.ts(7,23): error TS2339: Property 'getUserStats' does not exist on type 'FileStore'.

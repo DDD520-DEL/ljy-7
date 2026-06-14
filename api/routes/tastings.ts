@@ -50,6 +50,31 @@ router.post('/', (req: Request, res: Response) => {
   }
 });
 
+router.post('/by-trace-code', (req: Request, res: Response) => {
+  const { traceCode, ...tastingData } = req.body;
+  
+  if (!traceCode) {
+    return res.status(400).json({
+      success: false,
+      error: '追溯码为必填项',
+    });
+  }
+
+  const result = store.createTastingWithTraceCode(traceCode, tastingData);
+  
+  if (!result.success) {
+    return res.status(404).json({
+      success: false,
+      error: result.error || '创建品鉴记录失败',
+    });
+  }
+
+  res.status(201).json({
+    success: true,
+    data: result.tasting,
+  });
+});
+
 router.put('/:id', (req: Request, res: Response) => {
   const tasting = store.updateTasting(req.params.id, req.body);
   if (!tasting) {

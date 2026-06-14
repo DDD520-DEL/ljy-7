@@ -87,6 +87,17 @@ export interface CostSnapshot {
   yeast: { strain: string; brand: string; price: number };
 }
 
+export interface BottlingRecord {
+  id: string;
+  totalBottles: number;
+  bottleSpec: string;
+  capColor: string;
+  storageLocation: string;
+  traceCode: string;
+  bottledAt: string;
+  notes?: string;
+}
+
 export interface Batch {
   id: string;
   recipeId: string;
@@ -94,7 +105,7 @@ export interface Batch {
   recipeName?: string;
   name: string;
   brewDate: string;
-  status: 'planning' | 'brewing' | 'fermenting' | 'conditioning' | 'completed';
+  status: 'planning' | 'brewing' | 'fermenting' | 'conditioning' | 'completed' | 'bottled';
   originalGravityActual?: number;
   finalGravityActual?: number;
   volumeActual?: number;
@@ -108,6 +119,8 @@ export interface Batch {
   actualCost?: number;
   equipmentIds: string[];
   brewSteps: BrewStep[];
+  traceCode?: string;
+  bottlingRecord?: BottlingRecord;
 }
 
 export interface Tasting {
@@ -148,6 +161,7 @@ export interface Tasting {
   notes: string;
   recipeName?: string;
   batchName?: string;
+  traceCode?: string;
 }
 
 export interface RecipeComparison {
@@ -194,7 +208,8 @@ export const BATCH_STATUS_LABELS: Record<BatchStatus, string> = {
   brewing: '酿造中',
   fermenting: '发酵中',
   conditioning: '熟成中',
-  completed: '已完成'
+  completed: '已完成',
+  bottled: '已装瓶'
 };
 
 export const HOP_STAGE_LABELS: Record<HopAddition['stage'], string> = {

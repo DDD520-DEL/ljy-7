@@ -298,4 +298,49 @@ router.post('/:id/brew-steps/reset', (req: Request, res: Response) => {
   });
 });
 
+router.post('/:id/bottling', (req: Request, res: Response) => {
+  const { totalBottles, bottleSpec, capColor, storageLocation, notes } = req.body;
+  
+  if (!totalBottles || !bottleSpec || !capColor || !storageLocation) {
+    return res.status(400).json({
+      success: false,
+      error: '装瓶总数、瓶型规格、瓶盖颜色、储存位置为必填项',
+    });
+  }
+
+  const batch = store.createBottlingRecord(req.params.id, {
+    totalBottles: Number(totalBottles),
+    bottleSpec,
+    capColor,
+    storageLocation,
+    notes,
+  });
+
+  if (!batch) {
+    return res.status(404).json({
+      success: false,
+      error: '批次不存在',
+    });
+  }
+
+  res.status(201).json({
+    success: true,
+    data: batch,
+  });
+});
+
+router.get('/trace/:traceCode', (req: Request, res: Response) => {
+  const result = store.lookupTraceCode(req.params.traceCode);
+  if (!result) {
+    return res.status(404).json({
+      success: false,
+      error: '追溯码无效或不存在',
+    });
+  }
+  res.json({
+    success: true,
+    data: result,
+  });
+});
+
 export default router;

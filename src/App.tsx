@@ -8,7 +8,9 @@ import RecipeCompare from "@/pages/RecipeCompare";
 import Batches from "@/pages/Batches";
 import BatchDetail from "@/pages/BatchDetail";
 import BatchEdit from "@/pages/BatchEdit";
+import TraceCodeLookup from "@/pages/TraceCodeLookup";
 import Tastings from "@/pages/Tastings";
+import TastingEdit from "@/pages/TastingEdit";
 import Community from "@/pages/Community";
 import Inventory from "@/pages/Inventory";
 import Equipment from "@/pages/Equipment";
@@ -82,10 +84,14 @@ export default function App() {
             <Route path="/batches/new" element={<BatchEdit />} />
             <Route path="/batches/:id" element={<BatchDetail />} />
             <Route path="/batches/:id/edit" element={<BatchEdit />} />
+            <Route path="/trace" element={<TraceCodeLookup />} />
             <Route path="/water" element={<WaterAnalysis />} />
             <Route path="/equipment" element={<Equipment />} />
             <Route path="/inventory" element={<Inventory />} />
             <Route path="/tastings" element={<Tastings />} />
+            <Route path="/tastings/new" element={<TastingEdit />} />
+            <Route path="/tastings/:id" element={<Tastings />} />
+            <Route path="/tastings/:id/edit" element={<TastingEdit />} />
             <Route path="/community" element={<Community />} />
           </Routes>
         </main>

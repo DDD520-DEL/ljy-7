@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Recipe, Batch, Tasting, FermentationReading, ParameterDeviation, RecipeComparison, TastingComparison, UserBrewStats, RecipeComment, InventoryItem, InventoryCheckResult, IngredientShortage, IngredientType, BrewStage, BrewPhoto } from '../../shared/types.js';
+import type { Recipe, Batch, Tasting, FermentationReading, ParameterDeviation, RecipeComparison, TastingComparison, UserBrewStats, RecipeComment, InventoryItem, InventoryCheckResult, IngredientShortage, IngredientType, BrewStage, BrewPhoto, Equipment, EquipmentType } from '../../shared/types.js';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -14,6 +14,7 @@ interface BrewState {
   calendarBatches: Batch[];
   tastings: Tasting[];
   inventory: InventoryItem[];
+  equipment: Equipment[];
   inventoryCheck: InventoryCheckResult | null;
   currentRecipe: Recipe | null;
   currentBatch: Batch | null;
@@ -80,6 +81,12 @@ interface BrewState {
   restockInventory: (id: string, amount: number) => Promise<InventoryItem | null>;
   clearInventoryErrors: () => void;
 
+  fetchEquipment: (params?: { type?: EquipmentType; user?: string }) => Promise<void>;
+  fetchEquipmentById: (id: string) => Promise<void>;
+  createEquipment: (item: Omit<Equipment, 'id' | 'createdAt'>) => Promise<Equipment | null>;
+  updateEquipment: (id: string, updates: Partial<Equipment>) => Promise<Equipment | null>;
+  deleteEquipment: (id: string) => Promise<boolean>;
+
   clearCurrent: () => void;
   setError: (error: string | null) => void;
 }
@@ -106,6 +113,7 @@ export const useBrewStore = create<BrewState>((set, _get) => ({
   calendarBatches: [],
   tastings: [],
   inventory: [],
+  equipment: [],
   inventoryCheck: null,
   currentRecipe: null,
   currentBatch: null,
@@ -991,6 +999,109 @@ export const useBrewStore = create<BrewState>((set, _get) => ({
 
   clearInventoryErrors: () => {
     set({ inventoryShortages: [], inventoryWarnings: [], inventoryCheck: null, error: null });
+  },
+
+  fetchEquipment: async (params) => {
+    set({ loading: true, error: null });
+    try {
+      const query = new URLSearchParams();
+      if (params?.type) query.append('type', params.type);
+      if (params?.user) query.append('user', params.user);
+      const queryString = query.toString();
+      const response = await apiFetch<Equipment[]>(`/equipment${queryString ? `?${queryString}` : ''}`);
+      if (response.success) {
+        set({ equipment: response.data, loading: false });
+      } else {
+        set({ error: response.error || '获取设备列表失败', loading: false });
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+    }
+  },
+
+  fetchEquipmentById: async (id) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<Equipment>(`/equipment/${id}`);
+      if (response.success) {
+        set((state) => ({
+          equipment: state.equipment.map(e => e.id === id ? response.data : e),
+          loading: false,
+        }));
+      } else {
+        set({ error: response.error || '获取设备失败', loading: false });
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+    }
+  },
+
+  createEquipment: async (item) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<Equipment>('/equipment', {
+        method: 'POST',
+        body: JSON.stringify(item),
+      });
+      if (response.success) {
+        set((state) => ({
+          equipment: [...state.equipment, response.data],
+          loading: false,
+        }));
+        return response.data;
+      } else {
+        set({ error: response.error || '创建设备失败', loading: false });
+        return null;
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+      return null;
+    }
+  },
+
+  updateEquipment: async (id, updates) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<Equipment>(`/equipment/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+      if (response.success) {
+        set((state) => ({
+          equipment: state.equipment.map((e) => (e.id === id ? response.data : e)),
+          loading: false,
+        }));
+        return response.data;
+      } else {
+        set({ error: response.error || '更新设备失败', loading: false });
+        return null;
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+      return null;
+    }
+  },
+
+  deleteEquipment: async (id) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<{ message: string }>(`/equipment/${id}`, {
+        method: 'DELETE',
+      });
+      if (response.success) {
+        set((state) => ({
+          equipment: state.equipment.filter((e) => e.id !== id),
+          loading: false,
+        }));
+        return true;
+      } else {
+        set({ error: response.error || '删除设备失败', loading: false });
+        return false;
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+      return false;
+    }
   },
 
   clearCurrent: () => {

@@ -106,6 +106,7 @@ export interface Batch {
   createdBy: string;
   costSnapshot?: CostSnapshot;
   actualCost?: number;
+  equipmentIds: string[];
 }
 
 export interface Tasting {
@@ -304,4 +305,27 @@ export interface InventoryCheckResult {
     minStock: number;
     unit: string;
   }>;
+}
+
+export type EquipmentType = 'mash_tun' | 'boil_kettle' | 'fermenter' | 'cooler' | 'pump' | 'other';
+
+export const EQUIPMENT_TYPE_LABELS: Record<EquipmentType, string> = {
+  mash_tun: '糖化锅',
+  boil_kettle: '煮沸锅',
+  fermenter: '发酵罐',
+  cooler: '冷却器',
+  pump: '泵',
+  other: '其他',
+};
+
+export interface Equipment {
+  id: string;
+  name: string;
+  type: EquipmentType;
+  capacityLiters: number;
+  material: string;
+  purchaseDate: string;
+  createdAt: string;
+  createdBy: string;
+  note?: string;
 }

@@ -525,7 +525,8 @@ export const mockBatches: Batch[] = [
     notes: '这次发酵温度控制得很好，酒花香气突出。下次可以考虑增加一点干投量。',
     photos: [],
     createdAt: daysAgo(25),
-    createdBy: 'currentUser'
+    createdBy: 'currentUser',
+    equipmentIds: ['equip-001', 'equip-002', 'equip-003', 'equip-005']
   },
   {
     id: 'batch-002',
@@ -551,7 +552,8 @@ export const mockBatches: Batch[] = [
     notes: '使用了新批次的US-05酵母，发酵启动很快。',
     photos: [],
     createdAt: daysAgo(10),
-    createdBy: 'currentUser'
+    createdBy: 'currentUser',
+    equipmentIds: ['equip-001', 'equip-002', 'equip-003', 'equip-005']
   },
   {
     id: 'batch-003',
@@ -581,7 +583,8 @@ export const mockBatches: Batch[] = [
     notes: '高比重酿造成功！现在进入熟成阶段，计划瓶中熟成3个月。实际ABV约为9.1%。',
     photos: [],
     createdAt: daysAgo(40),
-    createdBy: '老王酿酒'
+    createdBy: '老王酿酒',
+    equipmentIds: ['equip-001', 'equip-002', 'equip-003', 'equip-005']
   },
   {
     id: 'batch-004',
@@ -605,7 +608,8 @@ export const mockBatches: Batch[] = [
     notes: '糖化效率不错，比重略高于预期。但发酵似乎有问题，酵母可能活性不足，连续几天比重未下降。',
     photos: [],
     createdAt: daysAgo(5),
-    createdBy: '精酿入门者'
+    createdBy: '精酿入门者',
+    equipmentIds: ['equip-001', 'equip-002', 'equip-004', 'equip-005']
   },
   {
     id: 'batch-005',
@@ -620,7 +624,8 @@ export const mockBatches: Batch[] = [
     notes: '计划本周末酿造，已备好原料。',
     photos: [],
     createdAt: daysAgo(3),
-    createdBy: 'currentUser'
+    createdBy: 'currentUser',
+    equipmentIds: []
   }
 ];
 

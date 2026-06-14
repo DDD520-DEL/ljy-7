@@ -1,14 +1,41 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Plus, Calendar, AlertCircle, Thermometer, Droplets, Beaker, Trash2, Save, X, DollarSign, Edit2, AlertTriangle, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Plus, Calendar, AlertCircle, Thermometer, Droplets, Beaker, Trash2, Save, X, DollarSign, Edit2, AlertTriangle, Image as ImageIcon, Settings, Droplets as DropletsIcon, Flame, Refrigerator, Cog, Wrench } from 'lucide-react';
 import { Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, ReferenceLine } from 'recharts';
 import { useBrewStore } from '../store/brewStore.js';
-import { BATCH_STATUS_LABELS } from '../../shared/types.js';
-import type { ParameterDeviation, BatchStatus, BrewStage } from '../../shared/types.js';
+import { BATCH_STATUS_LABELS, EQUIPMENT_TYPE_LABELS } from '../../shared/types.js';
+import type { ParameterDeviation, BatchStatus, BrewStage, Equipment, EquipmentType } from '../../shared/types.js';
 import { cn } from '../lib/utils.js';
 import { formatCurrency, checkBatchAnomaly, FERMENTATION_ANOMALY_THRESHOLD, calculateExpectedGravity, formatGravity } from '../utils/calculations.js';
 import MarkdownEditor from '../components/MarkdownEditor.js';
 import BrewPhotoGallery from '../components/BrewPhotoGallery.js';
+
+const equipmentTypeIcons: Record<EquipmentType, React.ReactNode> = {
+  mash_tun: <DropletsIcon className="w-5 h-5" />,
+  boil_kettle: <Flame className="w-5 h-5" />,
+  fermenter: <Refrigerator className="w-5 h-5" />,
+  cooler: <Cog className="w-5 h-5" />,
+  pump: <Settings className="w-5 h-5" />,
+  other: <Wrench className="w-5 h-5" />,
+};
+
+const equipmentTypeColors: Record<EquipmentType, string> = {
+  mash_tun: 'from-amber-500 to-orange-600',
+  boil_kettle: 'from-red-500 to-orange-600',
+  fermenter: 'from-blue-500 to-indigo-600',
+  cooler: 'from-cyan-500 to-blue-600',
+  pump: 'from-gray-500 to-slate-600',
+  other: 'from-purple-500 to-violet-600',
+};
+
+const equipmentTypeBgColors: Record<EquipmentType, string> = {
+  mash_tun: 'bg-amber-50 border-amber-200',
+  boil_kettle: 'bg-red-50 border-red-200',
+  fermenter: 'bg-blue-50 border-blue-200',
+  cooler: 'bg-cyan-50 border-cyan-200',
+  pump: 'bg-gray-50 border-gray-200',
+  other: 'bg-purple-50 border-purple-200',
+};
 
 function renderMarkdownToHtml(text: string): string {
   let html = text
@@ -67,7 +94,7 @@ function renderMarkdownToHtml(text: string): string {
 export default function BatchDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { currentBatch, currentRecipe, tastings, loading, error, fetchBatchById, fetchRecipeById, fetchTastings, updateBatch, addReading, addDeviation, deleteBatch, deleteReading, updateBatchNotes, addPhoto, updatePhoto, deletePhoto } = useBrewStore();
+  const { currentBatch, currentRecipe, tastings, equipment, loading, error, fetchBatchById, fetchRecipeById, fetchTastings, fetchEquipment, updateBatch, addReading, addDeviation, deleteBatch, deleteReading, updateBatchNotes, addPhoto, updatePhoto, deletePhoto } = useBrewStore();
   const [activeTab, setActiveTab] = useState<'overview' | 'readings' | 'deviations' | 'tastings' | 'photos'>('overview');
   const [showAddReading, setShowAddReading] = useState(false);
   const [showAddDeviation, setShowAddDeviation] = useState(false);
@@ -94,11 +121,12 @@ export default function BatchDetail() {
     if (id) {
       fetchBatchById(id);
       fetchTastings({ batchId: id });
+      fetchEquipment();
     }
     return () => {
       useBrewStore.getState().clearCurrent();
     };
-  }, [id, fetchBatchById, fetchTastings]);
+  }, [id, fetchBatchById, fetchTastings, fetchEquipment]);
 
   useEffect(() => {
     if (currentBatch && !currentRecipe) {
@@ -121,6 +149,13 @@ export default function BatchDetail() {
   const anomalyDates = useMemo(() => {
     return new Set(anomaly.lastDeviations.map(d => d.date.slice(0, 10)));
   }, [anomaly.lastDeviations]);
+
+  const batchEquipment = useMemo(() => {
+    if (!currentBatch?.equipmentIds || equipment.length === 0) return [];
+    return currentBatch.equipmentIds
+      .map(id => equipment.find(e => e.id === id))
+      .filter(Boolean) as Equipment[];
+  }, [currentBatch, equipment]);
 
   const handleAddReading = async () => {
     if (!currentBatch || !newReading.date || !newReading.specificGravity) return;
@@ -544,6 +579,64 @@ export default function BatchDetail() {
               <span className="text-gray-500">酵母成本: </span>
               <span className="font-medium text-purple-700">{formatCurrency(currentBatch.costSnapshot.yeastCost)}</span>
             </div>
+          </div>
+        </div>
+      )}
+
+      {batchEquipment.length > 0 && (
+        <div className="bg-white rounded-xl p-6 mb-6 border border-gray-100">
+          <div className="flex items-center gap-3 mb-4">
+            <Settings className="text-amber-600" size={24} />
+            <h3 className="text-lg font-semibold text-gray-900">酿造设备</h3>
+            <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">
+              {batchEquipment.length} 件
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {batchEquipment.map((equip) => (
+              <div
+                key={equip.id}
+                className={cn(
+                  "p-4 rounded-xl border-2 transition-all hover:shadow-md",
+                  equipmentTypeBgColors[equip.type]
+                )}
+              >
+                <div className="flex items-start gap-3">
+                  <div className={cn(
+                    "p-2 rounded-lg bg-gradient-to-br text-white",
+                    equipmentTypeColors[equip.type]
+                  )}>
+                    {equipmentTypeIcons[equip.type]}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-gray-900 truncate">{equip.name}</div>
+                    <div className="text-xs text-gray-500 mb-2">
+                      {EQUIPMENT_TYPE_LABELS[equip.type]}
+                    </div>
+                    <div className="space-y-1">
+                      {equip.capacityLiters > 0 && (
+                        <div className="flex items-center gap-2 text-xs text-gray-600">
+                          <Droplets size={12} className="text-blue-500" />
+                          <span>{equip.capacityLiters}L 容量</span>
+                        </div>
+                      )}
+                      {equip.material && (
+                        <div className="flex items-center gap-2 text-xs text-gray-600">
+                          <Beaker size={12} className="text-purple-500" />
+                          <span>{equip.material}</span>
+                        </div>
+                      )}
+                      {equip.purchaseDate && (
+                        <div className="flex items-center gap-2 text-xs text-gray-600">
+                          <Calendar size={12} className="text-gray-400" />
+                          <span>{equip.purchaseDate} 购入</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

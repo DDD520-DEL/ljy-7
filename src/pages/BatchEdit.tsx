@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Droplets, Plus, Calendar, AlertCircle, Check, X, Package, Scale, Leaf, Beaker, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Droplets, Plus, Calendar, AlertCircle, Check, X, Package, Scale, Leaf, Beaker, AlertTriangle, Settings, ChevronDown } from 'lucide-react';
 import { useBrewStore } from '../store/brewStore.js';
-import { BATCH_STATUS_LABELS, INGREDIENT_TYPE_LABELS, Batch, Recipe, IngredientShortage, IngredientType } from '../../shared/types.js';
+import { BATCH_STATUS_LABELS, INGREDIENT_TYPE_LABELS, EQUIPMENT_TYPE_LABELS, Batch, Recipe, IngredientShortage, IngredientType, Equipment } from '../../shared/types.js';
 import { cn } from '../lib/utils.js';
 
 export default function BatchEdit() {
@@ -15,12 +15,14 @@ export default function BatchEdit() {
   const {
     recipes,
     batches,
+    equipment,
     inventoryShortages,
     inventoryWarnings,
     loading,
     error,
     fetchRecipes,
     fetchBatches,
+    fetchEquipment,
     fetchBatchById,
     createBatchFromRecipe,
     updateBatch,
@@ -37,7 +39,21 @@ export default function BatchEdit() {
     notes: '',
     recipeName: '',
     createdBy: 'currentUser',
+    equipmentIds: [] as string[],
   });
+
+  const [showEquipmentDropdown, setShowEquipmentDropdown] = useState(false);
+  const equipmentDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (equipmentDropdownRef.current && !equipmentDropdownRef.current.contains(event.target as Node)) {
+        setShowEquipmentDropdown(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const [showShortageModal, setShowShortageModal] = useState(false);
   const [showWarningsAfterCreate, setShowWarningsAfterCreate] = useState(false);
@@ -47,7 +63,8 @@ export default function BatchEdit() {
   useEffect(() => {
     fetchRecipes();
     fetchBatches();
-  }, [fetchRecipes, fetchBatches]);
+    fetchEquipment();
+  }, [fetchRecipes, fetchBatches, fetchEquipment]);
 
   useEffect(() => {
     if (isEdit && id) {
@@ -65,6 +82,7 @@ export default function BatchEdit() {
         notes: currentBatch.notes,
         recipeName: currentBatch.recipeName || '',
         createdBy: currentBatch.createdBy,
+        equipmentIds: currentBatch.equipmentIds || [],
       });
     }
   }, [isEdit, id, currentBatch]);
@@ -93,6 +111,24 @@ export default function BatchEdit() {
   }, [inventoryShortages, inventoryWarnings]);
 
   const selectedRecipe = recipes.find(r => r.id === formData.recipeId);
+
+  const selectedEquipment = equipment.filter(e => formData.equipmentIds.includes(e.id));
+
+  const toggleEquipment = (equipmentId: string) => {
+    setFormData(prev => {
+      if (prev.equipmentIds.includes(equipmentId)) {
+        return { ...prev, equipmentIds: prev.equipmentIds.filter(id => id !== equipmentId) };
+      } else {
+        return { ...prev, equipmentIds: [...prev.equipmentIds, equipmentId] };
+      }
+    });
+  };
+
+  const groupedEquipment = equipment.reduce((acc, item) => {
+    if (!acc[item.type]) acc[item.type] = [];
+    acc[item.type].push(item);
+    return acc;
+  }, {} as Record<string, Equipment[]>);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -274,6 +310,94 @@ export default function BatchEdit() {
               rows={4}
               className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              酿造设备
+            </label>
+            <div className="relative" ref={equipmentDropdownRef}>
+              <button
+                type="button"
+                onClick={() => setShowEquipmentDropdown(!showEquipmentDropdown)}
+                className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent text-left bg-white flex items-center justify-between"
+              >
+                <span className={cn(selectedEquipment.length === 0 ? "text-gray-400" : "text-gray-900")}>
+                  {selectedEquipment.length === 0
+                    ? "-- 请选择使用的设备 --"
+                    : `已选择 ${selectedEquipment.length} 件设备`}
+                </span>
+                <ChevronDown className={cn("w-5 h-5 text-gray-400 transition-transform", showEquipmentDropdown && "rotate-180")} />
+              </button>
+
+              {selectedEquipment.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {selectedEquipment.map(e => (
+                    <span
+                      key={e.id}
+                      className="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-medium"
+                    >
+                      {e.name}
+                      <button
+                        type="button"
+                        onClick={() => toggleEquipment(e.id)}
+                        className="hover:text-amber-900"
+                      >
+                        <X size={12} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {showEquipmentDropdown && (
+                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-y-auto">
+                  {equipment.length === 0 ? (
+                    <div className="p-4 text-center text-gray-500">
+                      <Settings className="mx-auto mb-2 text-gray-300" size={24} />
+                      <p className="text-sm">暂无设备</p>
+                      <button
+                        type="button"
+                        onClick={() => navigate('/equipment')}
+                        className="text-amber-600 hover:text-amber-700 text-sm mt-1"
+                      >
+                        去添加设备
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="p-2">
+                      {(Object.keys(groupedEquipment) as Array<keyof typeof groupedEquipment>).map(type => (
+                        <div key={type} className="mb-3 last:mb-0">
+                          <div className="px-3 py-1.5 text-xs font-semibold text-gray-500 bg-gray-50 -mx-2 -mt-2 mb-2 first:mt-0 rounded-t-lg">
+                            {EQUIPMENT_TYPE_LABELS[type as keyof typeof EQUIPMENT_TYPE_LABELS] || type}
+                          </div>
+                          {groupedEquipment[type].map(item => (
+                            <label
+                              key={item.id}
+                              className="flex items-center gap-3 px-3 py-2 hover:bg-amber-50 rounded-lg cursor-pointer transition-colors"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={formData.equipmentIds.includes(item.id)}
+                                onChange={() => toggleEquipment(item.id)}
+                                className="w-4 h-4 text-amber-600 border-gray-300 rounded focus:ring-amber-500"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-medium text-gray-900 truncate">{item.name}</div>
+                                <div className="text-xs text-gray-500">
+                                  {item.capacityLiters > 0 && `${item.capacityLiters}L · `}
+                                  {item.material || '未指定材质'}
+                                </div>
+                              </div>
+                            </label>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

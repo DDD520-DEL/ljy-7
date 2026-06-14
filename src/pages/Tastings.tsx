@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Star, Edit2, Trash2, Calendar, Beer, GitCompare, CheckSquare, Square } from 'lucide-react';
+import { ArrowLeft, Star, Edit2, Trash2, Calendar, Beer, GitCompare, CheckSquare, Square, Download, ChevronDown } from 'lucide-react';
 import { useBrewStore } from '../store/brewStore.js';
-import { cn } from '../lib/utils.js';
+import { cn, downloadFile } from '../lib/utils.js';
 import TastingCompareModal from '../components/TastingCompareModal.js';
 
 export default function Tastings() {
@@ -11,6 +11,32 @@ export default function Tastings() {
   const { tastings, currentTasting, loading, error, fetchTastings, fetchTastingById, deleteTasting } = useBrewStore();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showCompareModal, setShowCompareModal] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showDetailExportMenu, setShowDetailExportMenu] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async (format: 'json' | 'csv', scope: 'all' | 'selected' | 'current') => {
+    if (exporting) return;
+    setExporting(true);
+    setShowExportMenu(false);
+    setShowDetailExportMenu(false);
+    try {
+      let url = '/api/tastings/export';
+      const params = new URLSearchParams();
+      params.append('format', format);
+
+      if (scope === 'selected' && selectedIds.length > 0) {
+        params.append('ids', selectedIds.join(','));
+      } else if (scope === 'current' && currentTasting) {
+        url = `/api/tastings/${currentTasting.id}/export`;
+      }
+
+      const queryString = params.toString();
+      await downloadFile(`${url}${queryString ? `?${queryString}` : ''}`);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   useEffect(() => {
     if (id) {
@@ -266,7 +292,36 @@ export default function Tastings() {
               </div>
             )}
 
-            <div className="mt-8 flex gap-3">
+            <div className="mt-8 flex flex-wrap gap-3">
+              <div className="relative">
+                <button
+                  onClick={() => setShowDetailExportMenu(!showDetailExportMenu)}
+                  disabled={exporting}
+                  className="flex items-center gap-2 px-4 py-2 bg-teal-50 text-teal-700 hover:bg-teal-100 rounded-lg font-medium transition-colors disabled:opacity-50"
+                >
+                  <Download size={18} />
+                  {exporting ? '导出中...' : '导出'}
+                  <ChevronDown size={16} />
+                </button>
+                {showDetailExportMenu && (
+                  <div className="absolute left-0 top-full mt-1 w-44 bg-white rounded-lg shadow-lg border border-gray-100 py-1 z-20">
+                    <button
+                      onClick={() => handleExport('json', 'current')}
+                      className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left"
+                    >
+                      <Download size={16} />
+                      导出为 JSON
+                    </button>
+                    <button
+                      onClick={() => handleExport('csv', 'current')}
+                      className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left"
+                    >
+                      <Download size={16} />
+                      导出为 CSV
+                    </button>
+                  </div>
+                )}
+              </div>
               <button
                 onClick={() => navigate(`/tastings/${currentTasting.id}/edit`)}
                 className="flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
@@ -306,32 +361,92 @@ export default function Tastings() {
             </h1>
             <p className="text-gray-600 mt-1">所有品鉴评分卡记录</p>
           </div>
-          {selectedIds.length > 0 && (
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-gray-600">
-                已选择 <span className="font-semibold text-amber-600">{selectedIds.length}</span> / 3 条
-              </span>
+          <div className="flex items-center gap-3">
+            {selectedIds.length > 0 && (
+              <>
+                <span className="text-sm text-gray-600">
+                  已选择 <span className="font-semibold text-amber-600">{selectedIds.length}</span> / 3 条
+                </span>
+                <button
+                  onClick={clearSelection}
+                  className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+                >
+                  取消选择
+                </button>
+                <button
+                  onClick={handleCompare}
+                  disabled={selectedIds.length < 2}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors",
+                    selectedIds.length >= 2
+                      ? "bg-amber-500 text-white hover:bg-amber-600"
+                      : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  )}
+                >
+                  <GitCompare size={18} />
+                  雷达图对比
+                </button>
+              </>
+            )}
+            <div className="relative">
               <button
-                onClick={clearSelection}
-                className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
-              >
-                取消选择
-              </button>
-              <button
-                onClick={handleCompare}
-                disabled={selectedIds.length < 2}
+                onClick={() => setShowExportMenu(!showExportMenu)}
+                disabled={exporting || tastings.length === 0}
                 className={cn(
                   "flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors",
-                  selectedIds.length >= 2
-                    ? "bg-amber-500 text-white hover:bg-amber-600"
-                    : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  exporting || tastings.length === 0
+                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    : "bg-teal-50 text-teal-700 hover:bg-teal-100"
                 )}
               >
-                <GitCompare size={18} />
-                雷达图对比
+                <Download size={18} className={cn(exporting && "animate-spin")} />
+                {exporting ? '导出中...' : '导出'}
+                <ChevronDown size={16} />
               </button>
+              {showExportMenu && tastings.length > 0 && (
+                <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-100 py-1 z-20">
+                  <div className="px-3 py-2 text-xs text-gray-400 border-b border-gray-50">
+                    导出全部品鉴记录 ({tastings.length} 条)
+                  </div>
+                  <button
+                    onClick={() => handleExport('json', 'all')}
+                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left"
+                  >
+                    <Download size={16} />
+                    全部导出为 JSON
+                  </button>
+                  <button
+                    onClick={() => handleExport('csv', 'all')}
+                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left"
+                  >
+                    <Download size={16} />
+                    全部导出为 CSV
+                  </button>
+                  {selectedIds.length > 0 && (
+                    <>
+                      <div className="px-3 py-2 text-xs text-gray-400 border-t border-gray-50 mt-1">
+                        导入选中记录 ({selectedIds.length} 条)
+                      </div>
+                      <button
+                        onClick={() => handleExport('json', 'selected')}
+                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left"
+                      >
+                        <Download size={16} />
+                        选中导出为 JSON
+                      </button>
+                      <button
+                        onClick={() => handleExport('csv', 'selected')}
+                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left"
+                      >
+                        <Download size={16} />
+                        选中导出为 CSV
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
         {tastings.length >= 2 && selectedIds.length === 0 && (
           <p className="text-sm text-gray-500 mt-3">

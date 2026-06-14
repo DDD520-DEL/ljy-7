@@ -1,8 +1,308 @@
 import express, { type Request, type Response } from 'express';
+import { deflateSync } from 'zlib';
 import { store } from '../data/store.js';
-import type { FermentationReading, ParameterDeviation, BrewStep } from '../../shared/types.js';
+import type { FermentationReading, ParameterDeviation, BrewStep, Batch } from '../../shared/types.js';
 
 const router = express.Router();
+
+function crc32(buf: Buffer): number {
+  let crc = 0xffffffff;
+  const table = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) {
+      c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+    }
+    table[n] = c >>> 0;
+  }
+  for (let i = 0; i < buf.length; i++) {
+    crc = (table[(crc ^ buf[i]) & 0xff] ^ (crc >>> 8)) >>> 0;
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function createChunk(type: string, data: Buffer): Buffer {
+  const typeData = Buffer.concat([Buffer.from(type, 'ascii'), data]);
+  const length = Buffer.alloc(4);
+  length.writeUInt32BE(data.length, 0);
+  const crc = Buffer.alloc(4);
+  crc.writeUInt32BE(crc32(typeData), 0);
+  return Buffer.concat([length, typeData, crc]);
+}
+
+function createPNG(width: number, height: number, rgbaData: Uint8ClampedArray): Buffer {
+  const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+
+  const ihdrData = Buffer.alloc(13);
+  ihdrData.writeUInt32BE(width, 0);
+  ihdrData.writeUInt32BE(height, 4);
+  ihdrData[8] = 8;
+  ihdrData[9] = 6;
+  ihdrData[10] = 0;
+  ihdrData[11] = 0;
+  ihdrData[12] = 0;
+  const ihdr = createChunk('IHDR', ihdrData);
+
+  const rawData = Buffer.alloc(height * (1 + width * 4));
+  for (let y = 0; y < height; y++) {
+    rawData[y * (1 + width * 4)] = 0;
+    for (let x = 0; x < width; x++) {
+      const srcIdx = (y * width + x) * 4;
+      const dstIdx = y * (1 + width * 4) + 1 + x * 4;
+      rawData[dstIdx] = rgbaData[srcIdx];
+      rawData[dstIdx + 1] = rgbaData[srcIdx + 1];
+      rawData[dstIdx + 2] = rgbaData[srcIdx + 2];
+      rawData[dstIdx + 3] = rgbaData[srcIdx + 3];
+    }
+  }
+
+  const compressed = deflateSync(rawData);
+  const idat = createChunk('IDAT', compressed);
+
+  const iend = createChunk('IEND', Buffer.alloc(0));
+
+  return Buffer.concat([signature, ihdr, idat, iend]);
+}
+
+function setPixel(data: Uint8ClampedArray, width: number, x: number, y: number, r: number, g: number, b: number, a = 255) {
+  if (x < 0 || y < 0 || x >= width) return;
+  const idx = (y * width + x) * 4;
+  data[idx] = r;
+  data[idx + 1] = g;
+  data[idx + 2] = b;
+  data[idx + 3] = a;
+}
+
+function drawLine(data: Uint8ClampedArray, width: number, height: number, x0: number, y0: number, x1: number, y1: number, r: number, g: number, b: number, thickness = 2) {
+  const dx = Math.abs(x1 - x0);
+  const dy = Math.abs(y1 - y0);
+  const sx = x0 < x1 ? 1 : -1;
+  const sy = y0 < y1 ? 1 : -1;
+  let err = dx - dy;
+  let x = x0;
+  let y = y0;
+
+  while (true) {
+    for (let t = -Math.floor(thickness / 2); t <= Math.floor(thickness / 2); t++) {
+      setPixel(data, width, x, y + t, r, g, b);
+      if (thickness > 2) setPixel(data, width, x + t, y, r, g, b);
+    }
+    if (x === x1 && y === y1) break;
+    const e2 = 2 * err;
+    if (e2 > -dy) { err -= dy; x += sx; }
+    if (e2 < dx) { err += dx; y += sy; }
+  }
+}
+
+function drawText(data: Uint8ClampedArray, width: number, height: number, text: string, x: number, y: number, r: number, g: number, b: number, fontSize = 12) {
+  const scale = fontSize / 8;
+  const chars: Record<string, number[][]> = {
+    '0': [[1,1,1],[1,0,1],[1,0,1],[1,0,1],[1,1,1]],
+    '1': [[0,1,0],[1,1,0],[0,1,0],[0,1,0],[1,1,1]],
+    '2': [[1,1,1],[0,0,1],[1,1,1],[1,0,0],[1,1,1]],
+    '3': [[1,1,1],[0,0,1],[0,1,1],[0,0,1],[1,1,1]],
+    '4': [[1,0,1],[1,0,1],[1,1,1],[0,0,1],[0,0,1]],
+    '5': [[1,1,1],[1,0,0],[1,1,1],[0,0,1],[1,1,1]],
+    '6': [[1,1,1],[1,0,0],[1,1,1],[1,0,1],[1,1,1]],
+    '7': [[1,1,1],[0,0,1],[0,1,0],[0,1,0],[0,1,0]],
+    '8': [[1,1,1],[1,0,1],[1,1,1],[1,0,1],[1,1,1]],
+    '9': [[1,1,1],[1,0,1],[1,1,1],[0,0,1],[1,1,1]],
+    '.': [[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,1,0]],
+    '-': [[0,0,0],[0,0,0],[1,1,1],[0,0,0],[0,0,0]],
+    ' ': [[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0]],
+    '°': [[0,1,0],[1,0,1],[0,1,0],[0,0,0],[0,0,0]],
+    'C': [[1,1,1],[1,0,0],[1,0,0],[1,0,0],[1,1,1]],
+    'L': [[1,0,0],[1,0,0],[1,0,0],[1,0,0],[1,1,1]],
+    'O': [[1,1,1],[1,0,1],[1,0,1],[1,0,1],[1,1,1]],
+    'G': [[1,1,1],[1,0,0],[1,1,1],[1,0,1],[1,1,1]],
+    'p': [[1,1,1],[1,0,1],[1,1,1],[1,0,0],[1,0,0]],
+    'H': [[1,0,1],[1,0,1],[1,1,1],[1,0,1],[1,0,1]],
+    'S': [[1,1,1],[1,0,0],[1,1,1],[0,0,1],[1,1,1]],
+    '比': [[1,1,1],[1,0,1],[1,1,1],[1,0,1],[1,0,1]],
+    '重': [[1,1,1],[0,1,0],[1,1,1],[0,1,0],[1,1,1]],
+    '温': [[1,1,1],[1,0,0],[1,1,1],[0,0,1],[1,1,1]],
+    '度': [[1,0,1],[1,1,0],[1,0,1],[1,0,1],[1,0,1]],
+    '日': [[1,1,1],[1,0,1],[1,0,1],[1,0,1],[1,1,1]],
+    '期': [[1,1,1],[0,1,0],[1,1,1],[0,1,0],[1,1,1]],
+    '发': [[1,1,1],[1,0,0],[1,1,0],[1,0,1],[1,1,1]],
+    '酵': [[1,1,1],[1,0,1],[1,1,0],[1,0,1],[1,1,1]],
+    '曲': [[1,1,1],[0,1,0],[1,1,1],[0,1,0],[1,1,1]],
+    '线': [[1,0,1],[1,1,0],[1,0,1],[1,0,1],[1,0,1]],
+    '名': [[1,1,1],[0,1,0],[1,1,1],[1,0,1],[1,0,1]],
+    '称': [[1,1,1],[1,0,1],[1,1,0],[1,0,1],[1,0,1]],
+    ':': [[0,0,0],[0,1,0],[0,0,0],[0,1,0],[0,0,0]],
+    '配': [[1,1,1],[1,0,1],[1,1,1],[1,0,0],[1,0,0]],
+    '方': [[1,1,1],[1,0,1],[1,1,0],[1,0,1],[1,0,1]],
+    '批': [[1,1,0],[1,0,1],[1,1,0],[1,0,1],[1,1,0]],
+    '次': [[1,1,0],[1,0,1],[1,1,0],[1,0,1],[1,0,1]],
+  };
+
+  let cx = x;
+  for (const ch of text) {
+    const pattern = chars[ch] || chars[' '];
+    for (let row = 0; row < pattern.length; row++) {
+      for (let col = 0; col < pattern[row].length; col++) {
+        if (pattern[row][col]) {
+          for (let sy = 0; sy < scale; sy++) {
+            for (let sx = 0; sx < scale; sx++) {
+              const px = Math.floor(cx + col * scale + sx);
+              const py = Math.floor(y + row * scale + sy);
+              if (py >= 0 && py < height && px >= 0 && px < width) {
+                setPixel(data, width, px, py, r, g, b);
+              }
+            }
+          }
+        }
+      }
+    }
+    cx += Math.floor(4 * scale);
+  }
+}
+
+function drawRect(data: Uint8ClampedArray, width: number, height: number, x0: number, y0: number, x1: number, y1: number, r: number, g: number, b: number, a = 255, fill = true) {
+  for (let y = y0; y <= y1; y++) {
+    for (let x = x0; x <= x1; x++) {
+      if (fill || y === y0 || y === y1 || x === x0 || x === x1) {
+        setPixel(data, width, x, y, r, g, b, a);
+      }
+    }
+  }
+}
+
+function generateChartPNG(batch: Batch): Buffer {
+  const W = 1200;
+  const H = 700;
+  const padL = 80;
+  const padR = 40;
+  const padT = 120;
+  const padB = 100;
+  const chartW = W - padL - padR;
+  const chartH = H - padT - padB;
+
+  const data = new Uint8ClampedArray(W * H * 4);
+  for (let i = 0; i < W * H * 4; i += 4) {
+    data[i] = 255;
+    data[i + 1] = 255;
+    data[i + 2] = 255;
+    data[i + 3] = 255;
+  }
+
+  const sortedReadings = [...batch.readings].sort((a, b) => a.date.localeCompare(b.date));
+
+  if (sortedReadings.length === 0) {
+    drawText(data, W, H, `${batch.name} - 暂无发酵读数`, Math.floor(W / 2 - 200), Math.floor(H / 2), 100, 100, 100, 16);
+    return createPNG(W, H, data);
+  }
+
+  drawText(data, W, H, `批次: ${batch.name}`, padL, 25, 50, 50, 50, 16);
+  drawText(data, W, H, `配方: ${batch.recipeName || '未知'}`, padL, 50, 100, 100, 100, 12);
+  drawText(data, W, H, `酿造日期: ${batch.brewDate}`, padL, 72, 100, 100, 100, 12);
+  drawText(data, W, H, `读数数量: ${batch.readings.length}`, padL + 300, 50, 100, 100, 100, 12);
+  drawText(data, W, H, `生成时间: ${new Date().toLocaleString('zh-CN')}`, padL + 300, 72, 100, 100, 100, 12);
+
+  drawRect(data, W, H, padL - 2, padT - 2, padL + chartW + 2, padT + chartH + 2, 220, 220, 220, 255, false);
+  drawRect(data, W, H, padL, padT, padL + chartW, padT + chartH, 250, 250, 250, 255, true);
+
+  const sgs = sortedReadings.map(r => r.specificGravity);
+  const temps = sortedReadings.map(r => r.temperature);
+  const phs = sortedReadings.filter(r => r.ph).map(r => r.ph);
+
+  const sgMin = Math.max(0.99, Math.min(...sgs) - 0.01);
+  const sgMax = Math.min(1.08, Math.max(...sgs) + 0.01);
+  const tempMin = Math.max(0, Math.min(...temps) - 2);
+  const tempMax = Math.min(40, Math.max(...temps) + 2);
+
+  const sgTicks = 6;
+  for (let i = 0; i <= sgTicks; i++) {
+    const y = padT + chartH - Math.floor((i / sgTicks) * chartH);
+    drawLine(data, W, H, padL, y, padL + chartW, y, 235, 235, 235, 1);
+    const val = (sgMin + (sgMax - sgMin) * (i / sgTicks)).toFixed(3);
+    drawText(data, W, H, val, 10, y - 5, 217, 119, 6, 10);
+  }
+
+  const tempTicks = 6;
+  for (let i = 0; i <= tempTicks; i++) {
+    const val = (tempMin + (tempMax - tempMin) * (i / sgTicks)).toFixed(1);
+    drawText(data, W, H, `${val}°C`, W - padR + 5, padT + chartH - Math.floor((i / tempTicks) * chartH) - 5, 59, 130, 246, 10);
+  }
+
+  const labelCount = Math.min(sortedReadings.length, 8);
+  const labelStep = Math.max(1, Math.floor(sortedReadings.length / labelCount));
+  for (let i = 0; i < sortedReadings.length; i += labelStep) {
+    const x = padL + Math.floor((i / (sortedReadings.length - 1 || 1)) * chartW);
+    drawLine(data, W, H, x, padT, x, padT + chartH, 235, 235, 235, 1);
+    const label = sortedReadings[i].date.slice(5);
+    drawText(data, W, H, label, x - 15, padT + chartH + 15, 100, 100, 100, 10);
+  }
+
+  drawText(data, W, H, '日期', padL + Math.floor(chartW / 2) - 15, H - 30, 100, 100, 100, 12);
+  drawText(data, W, H, '比重', 5, padT + Math.floor(chartH / 2) - 15, 217, 119, 6, 12);
+  drawText(data, W, H, '温度', W - padR - 5, padT + Math.floor(chartH / 2) - 15, 59, 130, 246, 12);
+
+  const toX = (i: number) => padL + Math.floor((i / (sortedReadings.length - 1 || 1)) * chartW);
+  const toYSG = (sg: number) => padT + chartH - Math.floor(((sg - sgMin) / (sgMax - sgMin || 1)) * chartH);
+  const toYTemp = (t: number) => padT + chartH - Math.floor(((t - tempMin) / (tempMax - tempMin || 1)) * chartH);
+
+  for (let i = 1; i < sortedReadings.length; i++) {
+    drawLine(
+      data, W, H,
+      toX(i - 1), toYSG(sortedReadings[i - 1].specificGravity),
+      toX(i), toYSG(sortedReadings[i].specificGravity),
+      217, 119, 6, 3
+    );
+  }
+
+  for (let i = 1; i < sortedReadings.length; i++) {
+    drawLine(
+      data, W, H,
+      toX(i - 1), toYTemp(sortedReadings[i - 1].temperature),
+      toX(i), toYTemp(sortedReadings[i].temperature),
+      59, 130, 246, 3
+    );
+  }
+
+  for (let i = 0; i < sortedReadings.length; i++) {
+    const cx = toX(i);
+    const cySG = toYSG(sortedReadings[i].specificGravity);
+    const cyTemp = toYTemp(sortedReadings[i].temperature);
+    drawRect(data, W, H, cx - 4, cySG - 4, cx + 4, cySG + 4, 217, 119, 6, 255, true);
+    drawRect(data, W, H, cx - 4, cyTemp - 4, cx + 4, cyTemp + 4, 59, 130, 246, 255, true);
+  }
+
+  if (phs.length >= 2) {
+    const phMin = Math.min(...phs) - 0.3;
+    const phMax = Math.max(...phs) + 0.3;
+    const toYPH = (ph: number) => padT + chartH - Math.floor(((ph - phMin) / (phMax - phMin || 1)) * chartH);
+    let prevIdx = -1;
+    for (let i = 0; i < sortedReadings.length; i++) {
+      if (sortedReadings[i].ph) {
+        if (prevIdx >= 0) {
+          drawLine(
+            data, W, H,
+            toX(prevIdx), toYPH(sortedReadings[prevIdx].ph!),
+            toX(i), toYPH(sortedReadings[i].ph!),
+            34, 197, 94, 2
+          );
+        }
+        prevIdx = i;
+      }
+    }
+  }
+
+  const legendY = 98;
+  drawRect(data, W, H, padL, legendY - 10, padL + 20, legendY + 5, 217, 119, 6, 255, true);
+  drawText(data, W, H, '比重 (SG)', padL + 28, legendY - 6, 217, 119, 6, 12);
+
+  drawRect(data, W, H, padL + 150, legendY - 10, padL + 170, legendY + 5, 59, 130, 246, 255, true);
+  drawText(data, W, H, '温度 (°C)', padL + 178, legendY - 6, 59, 130, 246, 12);
+
+  if (phs.length >= 2) {
+    drawRect(data, W, H, padL + 300, legendY - 10, padL + 320, legendY + 5, 34, 197, 94, 255, true);
+    drawText(data, W, H, 'pH', padL + 328, legendY - 6, 34, 197, 94, 12);
+  }
+
+  return createPNG(W, H, data);
+}
 
 router.get('/', (req: Request, res: Response) => {
   const { recipeId, startDate, endDate } = req.query;
@@ -335,6 +635,32 @@ router.get('/trace/:traceCode', (req: Request, res: Response) => {
     success: true,
     data: result,
   });
+});
+
+router.get('/:id/export/chart', (req: Request, res: Response) => {
+  const batch = store.getBatchById(req.params.id);
+  if (!batch) {
+    return res.status(404).json({
+      success: false,
+      error: '批次不存在',
+    });
+  }
+
+  try {
+    const pngBuffer = generateChartPNG(batch);
+    const safeName = batch.name.replace(/[<>:"/\\|?*]/g, '_');
+    const timestamp = new Date().toISOString().slice(0, 10);
+
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Content-Disposition', `attachment; filename="发酵曲线_${safeName}_${timestamp}.png"`);
+    res.setHeader('Content-Length', pngBuffer.length);
+    res.send(pngBuffer);
+  } catch (_error) {
+    res.status(500).json({
+      success: false,
+      error: '生成图表失败',
+    });
+  }
 });
 
 export default router;

@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, GitBranch, GitFork, Plus, Thermometer, Droplets, Scale, Leaf, Calendar, TrendingUp, Clock, Star, Eye, EyeOff, Edit2, Trash2, GitCompare, DollarSign, GitCompareArrows, MessageSquare } from 'lucide-react';
+import { ArrowLeft, GitBranch, GitFork, Plus, Thermometer, Droplets, Scale, Leaf, Calendar, TrendingUp, Clock, Star, Eye, EyeOff, Edit2, Trash2, GitCompare, DollarSign, GitCompareArrows, MessageSquare, Download, ChevronDown } from 'lucide-react';
 import { useBrewStore } from '../store/brewStore.js';
 import { BATCH_STATUS_LABELS, HOP_STAGE_LABELS } from '../../shared/types.js';
-import { cn } from '../lib/utils.js';
+import { cn, downloadFile } from '../lib/utils.js';
 import { calculateTotalMaltCost, calculateTotalHopCost, calculateYeastCost, calculateMaltCost, calculateHopCost, formatCurrency } from '../utils/calculations.js';
 import RecipeLineageTree from '../components/RecipeLineageTree.js';
 import BatchCompareChart from '../components/BatchCompareChart.js';
@@ -20,6 +20,19 @@ export default function RecipeDetail() {
   const [branchName, setBranchName] = useState('main');
   const [versionDescription, setVersionDescription] = useState('');
   const [selectedBatchIds, setSelectedBatchIds] = useState<Set<string>>(new Set());
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async (format: 'json' | 'csv') => {
+    if (!currentRecipe || exporting) return;
+    setExporting(true);
+    setShowExportMenu(false);
+    try {
+      await downloadFile(`/api/recipes/${currentRecipe.id}/export?format=${format}`);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const toggleBatchSelection = (batchId: string) => {
     setSelectedBatchIds(prev => {
@@ -165,6 +178,35 @@ export default function RecipeDetail() {
                 对比
               </Link>
             )}
+            <div className="relative">
+              <button
+                onClick={() => setShowExportMenu(!showExportMenu)}
+                disabled={exporting}
+                className="flex items-center gap-2 px-4 py-2 bg-teal-50 text-teal-700 hover:bg-teal-100 rounded-lg font-medium transition-colors disabled:opacity-50"
+              >
+                <Download size={18} />
+                {exporting ? '导出中...' : '导出'}
+                <ChevronDown size={16} />
+              </button>
+              {showExportMenu && (
+                <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-lg shadow-lg border border-gray-100 py-1 z-20">
+                  <button
+                    onClick={() => handleExport('json')}
+                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left"
+                  >
+                    <Download size={16} />
+                    导出为 JSON
+                  </button>
+                  <button
+                    onClick={() => handleExport('csv')}
+                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left"
+                  >
+                    <Download size={16} />
+                    导出为 CSV
+                  </button>
+                </div>
+              )}
+            </div>
             <Link
               to={`/recipes/${currentRecipe.id}/edit`}
               className="flex items-center gap-2 px-4 py-2 bg-amber-100 text-amber-700 hover:bg-amber-200 rounded-lg font-medium transition-colors"

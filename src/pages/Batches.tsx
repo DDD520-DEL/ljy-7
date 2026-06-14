@@ -1,15 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Droplets, Plus, Calendar, AlertCircle, TrendingUp, Thermometer, Beaker, Edit2, Trash2 } from 'lucide-react';
+import { ArrowLeft, Droplets, Plus, Calendar, AlertCircle, TrendingUp, Thermometer, Beaker, Edit2, Trash2, Download } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useBrewStore } from '../store/brewStore.js';
 import { BATCH_STATUS_LABELS } from '../../shared/types.js';
-import { cn } from '../lib/utils.js';
+import { cn, downloadFile } from '../lib/utils.js';
 
 export default function Batches() {
   const navigate = useNavigate();
   const { batches, loading, error, fetchBatches, deleteBatch } = useBrewStore();
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [exportingId, setExportingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchBatches();
@@ -19,6 +20,17 @@ export default function Batches() {
     e.stopPropagation();
     if (confirm('确定要删除这个批次吗？')) {
       await deleteBatch(id);
+    }
+  };
+
+  const handleExportChart = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (exportingId) return;
+    setExportingId(id);
+    try {
+      await downloadFile(`/api/batches/${id}/export/chart`);
+    } finally {
+      setExportingId(null);
     }
   };
 
@@ -251,8 +263,24 @@ export default function Batches() {
                       pH 记录: {batch.readings.filter(r => r.ph).length}
                     </span>
                   </div>
-                  <div className="text-sm text-gray-400">
-                    创建于 {new Date(batch.createdAt).toLocaleDateString('zh-CN')}
+                  <div className="flex items-center gap-4">
+                    <button
+                      onClick={(e) => handleExportChart(batch.id, e)}
+                      disabled={exportingId === batch.id || batch.readings.length === 0}
+                      title={batch.readings.length === 0 ? '暂无可导出的发酵读数' : '导出发酵曲线图'}
+                      className={cn(
+                        "flex items-center gap-1 text-sm transition-colors",
+                        batch.readings.length === 0
+                          ? "text-gray-300 cursor-not-allowed"
+                          : "text-teal-600 hover:text-teal-800"
+                      )}
+                    >
+                      <Download size={14} className={cn(exportingId === batch.id && "animate-spin")} />
+                      {exportingId === batch.id ? '导出中...' : '导出曲线PNG'}
+                    </button>
+                    <div className="text-sm text-gray-400">
+                      创建于 {new Date(batch.createdAt).toLocaleDateString('zh-CN')}
+                    </div>
                   </div>
                 </div>
               </div>

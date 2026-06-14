@@ -1,8 +1,60 @@
 import express, { type Request, type Response } from 'express';
 import { store } from '../data/store.js';
-import { BJCP_STYLE_GUIDES } from '../../shared/types.js';
+import { BJCP_STYLE_GUIDES, type Recipe } from '../../shared/types.js';
 
 const router = express.Router();
+
+function recipeToCSV(recipe: Recipe): string {
+  const headers = [
+    'ID', '名称', '风格', '描述', '批次容量(L)', '原始比重', '最终比重',
+    '酒精度(%)', '苦度(IBU)', '色度(SRM)', '版本', '分支', '是否公开',
+    '创建时间', '更新时间', '创建者', '麦芽配比', '酒花投放',
+    '酵母菌株', '酵母品牌', '发酵度(%)', '发酵温度范围',
+    '糖化步骤'
+  ];
+
+  const maltsStr = recipe.malts
+    .map(m => `${m.name}(${m.weight}kg, ${m.percentage}%, 色度${m.color})`)
+    .join('; ');
+
+  const hopsStr = recipe.hops
+    .map(h => `${h.name}(${h.weight}g, α酸${h.alphaAcid}%, ${h.time}min, ${h.stage})`)
+    .join('; ');
+
+  const mashStepsStr = recipe.mashSteps
+    .map(s => `${s.description}(${s.temperature}°C, ${s.duration}min)`)
+    .join('; ');
+
+  const yeastTempRange = `${recipe.yeast.temperature[0]}-${recipe.yeast.temperature[1]}°C`;
+
+  const values = [
+    recipe.id,
+    `"${recipe.name.replace(/"/g, '""')}"`,
+    recipe.style,
+    `"${(recipe.description || '').replace(/"/g, '""')}"`,
+    recipe.batchSize,
+    recipe.originalGravity,
+    recipe.finalGravity,
+    recipe.abv,
+    recipe.ibu,
+    recipe.srm,
+    recipe.version,
+    recipe.branchName || '',
+    recipe.isPublic ? '是' : '否',
+    recipe.createdAt,
+    recipe.updatedAt,
+    recipe.createdBy,
+    `"${maltsStr.replace(/"/g, '""')}"`,
+    `"${hopsStr.replace(/"/g, '""')}"`,
+    recipe.yeast.strain,
+    recipe.yeast.brand,
+    recipe.yeast.attenuation,
+    yeastTempRange,
+    `"${mashStepsStr.replace(/"/g, '""')}"`
+  ];
+
+  return '\ufeff' + headers.join(',') + '\n' + values.join(',') + '\n';
+}
 
 router.get('/', (req: Request, res: Response) => {
   const { public: isPublic, user } = req.query;
@@ -187,6 +239,36 @@ router.get('/bjcp/styles', (_req: Request, res: Response) => {
     success: true,
     data: styles,
   });
+});
+
+router.get('/:id/export', (req: Request, res: Response) => {
+  const recipe = store.getRecipeById(req.params.id);
+  if (!recipe) {
+    return res.status(404).json({
+      success: false,
+      error: '配方不存在',
+    });
+  }
+
+  const format = (req.query.format as string) || 'json';
+  const safeName = recipe.name.replace(/[<>:"/\\|?*]/g, '_');
+  const timestamp = new Date().toISOString().slice(0, 10);
+
+  if (format === 'csv') {
+    const csv = recipeToCSV(recipe);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="配方_${safeName}_${timestamp}.csv"`);
+    return res.send(csv);
+  }
+
+  const jsonData = JSON.stringify({
+    exportedAt: new Date().toISOString(),
+    data: recipe,
+  }, null, 2);
+
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="配方_${safeName}_${timestamp}.json"`);
+  res.send(jsonData);
 });
 
 export default router;

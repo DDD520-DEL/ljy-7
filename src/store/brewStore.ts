@@ -1939,6 +1939,12 @@ export const useBrewStore = create<BrewState>((set, _get) => ({
       if (response.success) {
         set((state) => ({
           brewPostComments: [...state.brewPostComments, response.data],
+          brewPosts: state.brewPosts.map((p) =>
+            p.id === data.postId ? { ...p, commentCount: p.commentCount + 1 } : p
+          ),
+          currentBrewPost: state.currentBrewPost?.id === data.postId
+            ? { ...state.currentBrewPost, commentCount: state.currentBrewPost.commentCount + 1 }
+            : state.currentBrewPost,
         }));
         return response.data;
       }
@@ -1954,9 +1960,19 @@ export const useBrewStore = create<BrewState>((set, _get) => ({
         method: 'DELETE',
       });
       if (response.success) {
-        set((state) => ({
-          brewPostComments: state.brewPostComments.filter((c) => c.id !== commentId),
-        }));
+        set((state) => {
+          const deleted = state.brewPostComments.find(c => c.id === commentId);
+          const postId = deleted?.postId;
+          return {
+            brewPostComments: state.brewPostComments.filter((c) => c.id !== commentId),
+            brewPosts: postId ? state.brewPosts.map((p) =>
+              p.id === postId ? { ...p, commentCount: Math.max(0, p.commentCount - 1) } : p
+            ) : state.brewPosts,
+            currentBrewPost: postId && state.currentBrewPost?.id === postId
+              ? { ...state.currentBrewPost, commentCount: Math.max(0, state.currentBrewPost.commentCount - 1) }
+              : state.currentBrewPost,
+          };
+        });
         return true;
       }
       return false;

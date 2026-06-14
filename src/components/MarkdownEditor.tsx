@@ -31,10 +31,10 @@ function renderMarkdown(text: string): string {
   html = html.replace(/```([\s\S]*?)```/g, '<pre class="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto my-4 text-sm font-mono"><code>$1</code></pre>');
 
   html = html.replace(/^\s*[-*+]\s+(.*$)/gim, '<li class="ml-4 list-disc text-gray-700">$1</li>');
-  html = html.replace(/(<li[^>]*>.*<\/li>)(?=\s*<li|$)/gs, '<ul class="my-3 space-y-1">$1</ul>');
+  html = html.replace(/((?:<li class="ml-4 list-disc[^"]*">.*<\/li>\s*)+)/g, '<ul class="my-3 space-y-1">$1</ul>');
 
   html = html.replace(/^\s*\d+\.\s+(.*$)/gim, '<li class="ml-4 list-decimal text-gray-700">$1</li>');
-  html = html.replace(/(<li[^>]*>.*<\/li>)(?=\s*\d+\.|$)/gs, '<ol class="my-3 space-y-1">$1</ol>');
+  html = html.replace(/((?:<li class="ml-4 list-decimal[^"]*">.*<\/li>\s*)+)/g, '<ol class="my-3 space-y-1">$1</ol>');
 
   html = html.replace(/^> (.*$)/gim, '<blockquote class="border-l-4 border-amber-400 pl-4 my-4 text-gray-600 italic">$1</blockquote>');
 

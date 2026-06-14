@@ -1,4 +1,4 @@
-import { Recipe, Batch, Tasting } from '../../shared/types';
+import { Recipe, Batch, Tasting, InventoryItem, Equipment, RecipeComment } from '../../shared/types';
 
 
 const now = new Date();
@@ -526,7 +526,8 @@ export const mockBatches: Batch[] = [
     photos: [],
     createdAt: daysAgo(25),
     createdBy: 'currentUser',
-    equipmentIds: ['equip-001', 'equip-002', 'equip-003', 'equip-005']
+    equipmentIds: ['equip-001', 'equip-002', 'equip-003', 'equip-005'],
+    brewSteps: []
   },
   {
     id: 'batch-002',
@@ -553,7 +554,8 @@ export const mockBatches: Batch[] = [
     photos: [],
     createdAt: daysAgo(10),
     createdBy: 'currentUser',
-    equipmentIds: ['equip-001', 'equip-002', 'equip-003', 'equip-005']
+    equipmentIds: ['equip-001', 'equip-002', 'equip-003', 'equip-005'],
+    brewSteps: []
   },
   {
     id: 'batch-003',
@@ -584,7 +586,8 @@ export const mockBatches: Batch[] = [
     photos: [],
     createdAt: daysAgo(40),
     createdBy: '老王酿酒',
-    equipmentIds: ['equip-001', 'equip-002', 'equip-003', 'equip-005']
+    equipmentIds: ['equip-001', 'equip-002', 'equip-003', 'equip-005'],
+    brewSteps: []
   },
   {
     id: 'batch-004',
@@ -609,7 +612,8 @@ export const mockBatches: Batch[] = [
     photos: [],
     createdAt: daysAgo(5),
     createdBy: '精酿入门者',
-    equipmentIds: ['equip-001', 'equip-002', 'equip-004', 'equip-005']
+    equipmentIds: ['equip-001', 'equip-002', 'equip-004', 'equip-005'],
+    brewSteps: []
   },
   {
     id: 'batch-005',
@@ -625,7 +629,8 @@ export const mockBatches: Batch[] = [
     photos: [],
     createdAt: daysAgo(3),
     createdBy: 'currentUser',
-    equipmentIds: []
+    equipmentIds: [],
+    brewSteps: []
   }
 ];
 
@@ -776,3 +781,71 @@ export function saveToStorage<T>(key: string, value: T): void {
     console.error('Error saving to storage:', e);
   }
 }
+
+export const mockInventory: InventoryItem[] = [
+  { id: 'inv-001', type: 'malt', name: 'Pale Malt (2 Row)', currentStock: 25, minStock: 5, unit: 'kg', updatedAt: daysAgo(5), note: '基础淡色麦芽' },
+  { id: 'inv-002', type: 'malt', name: 'Caramel Malt 20L', currentStock: 3, minStock: 1, unit: 'kg', updatedAt: daysAgo(10), note: '水晶麦芽20L' },
+  { id: 'inv-003', type: 'malt', name: 'Carapils Malt', currentStock: 2.5, minStock: 0.5, unit: 'kg', updatedAt: daysAgo(7), note: ' dextrin麦芽' },
+  { id: 'inv-004', type: 'malt', name: 'Munich Malt', currentStock: 1.5, minStock: 1, unit: 'kg', updatedAt: daysAgo(15) },
+  { id: 'inv-005', type: 'malt', name: 'Wheat Malt', currentStock: 6, minStock: 2, unit: 'kg', updatedAt: daysAgo(3) },
+  { id: 'inv-006', type: 'malt', name: 'Pilsner Malt', currentStock: 8, minStock: 3, unit: 'kg', updatedAt: daysAgo(5) },
+  { id: 'inv-007', type: 'malt', name: 'Roasted Barley', currentStock: 0.8, minStock: 0.5, unit: 'kg', updatedAt: daysAgo(30) },
+  { id: 'inv-008', type: 'malt', name: 'Chocolate Malt', currentStock: 0.6, minStock: 0.3, unit: 'kg', updatedAt: daysAgo(25) },
+  { id: 'inv-009', type: 'hop', name: 'Cascade', currentStock: 0.5, minStock: 0.1, unit: 'kg', updatedAt: daysAgo(2), note: '冷藏保存' },
+  { id: 'inv-010', type: 'hop', name: 'Centennial', currentStock: 0.3, minStock: 0.1, unit: 'kg', updatedAt: daysAgo(2), note: '冷藏保存' },
+  { id: 'inv-011', type: 'hop', name: 'Citra', currentStock: 0.2, minStock: 0.05, unit: 'kg', updatedAt: daysAgo(5) },
+  { id: 'inv-012', type: 'hop', name: 'Mosaic', currentStock: 0.15, minStock: 0.05, unit: 'kg', updatedAt: daysAgo(5) },
+  { id: 'inv-013', type: 'hop', name: 'Magnum', currentStock: 0.1, minStock: 0.05, unit: 'kg', updatedAt: daysAgo(20) },
+  { id: 'inv-014', type: 'hop', name: 'Saaz', currentStock: 0.25, minStock: 0.1, unit: 'kg', updatedAt: daysAgo(10) },
+  { id: 'inv-015', type: 'hop', name: 'Hallertau Mittelfrueh', currentStock: 0.08, minStock: 0.05, unit: 'kg', updatedAt: daysAgo(15), note: '库存偏低' },
+  { id: 'inv-016', type: 'yeast', name: 'US-05 American Ale', currentStock: 8, minStock: 3, unit: '份', updatedAt: daysAgo(1), note: 'Fermentis干酵母' },
+  { id: 'inv-017', type: 'yeast', name: 'WLP001 California Ale', currentStock: 2, minStock: 1, unit: '份', updatedAt: daysAgo(7), note: 'White Labs液体酵母，冷藏' },
+  { id: 'inv-018', type: 'yeast', name: 'WLP300 Hefeweizen', currentStock: 1, minStock: 1, unit: '份', updatedAt: daysAgo(14) },
+  { id: 'inv-019', type: 'yeast', name: 'WLP800 Pilsner Lager', currentStock: 1, minStock: 1, unit: '份', updatedAt: daysAgo(10) },
+];
+
+export const mockEquipment: Equipment[] = [
+  { id: 'equip-001', name: '25L不锈钢糖化锅', type: 'mash_tun', capacityLiters: 25, material: '304不锈钢', purchaseDate: '2024-01-15', createdAt: daysAgo(180), createdBy: 'currentUser', note: '带假底，保温良好' },
+  { id: 'equip-002', name: '30L煮沸锅', type: 'boil_kettle', capacityLiters: 30, material: '304不锈钢', purchaseDate: '2024-01-15', createdAt: daysAgo(180), createdBy: 'currentUser' },
+  { id: 'equip-003', name: '30L锥形发酵罐', type: 'fermenter', capacityLiters: 30, material: '304不锈钢', purchaseDate: '2024-01-20', createdAt: daysAgo(175), createdBy: 'currentUser', note: '带冷却盘管' },
+  { id: 'equip-004', name: '2号锥形发酵罐', type: 'fermenter', capacityLiters: 30, material: '304不锈钢', purchaseDate: '2024-03-10', createdAt: daysAgo(120), createdBy: 'currentUser' },
+  { id: 'equip-005', name: '板式换热器', type: 'cooler', capacityLiters: 0, material: '316不锈钢', purchaseDate: '2024-01-25', createdAt: daysAgo(170), createdBy: 'currentUser', note: '双段板式，冷却效率高' },
+  { id: 'equip-006', name: '食品级输送泵', type: 'pump', capacityLiters: 0, material: '食品级塑料+不锈钢', purchaseDate: '2024-02-01', createdAt: daysAgo(165), createdBy: 'currentUser', note: '流量可调' },
+  { id: 'equip-007', name: '电动麦芽粉碎机', type: 'other', capacityLiters: 0, material: '铸铁+不锈钢', purchaseDate: '2024-01-10', createdAt: daysAgo(185), createdBy: 'currentUser' },
+];
+
+export const mockComments: RecipeComment[] = [
+  {
+    id: 'comment-001',
+    recipeId: 'recipe-001',
+    userId: 'user-002',
+    userName: '资深酿友',
+    rating: 5,
+    content: '非常经典的西海岸IPA配方！按照这个配方酿了3次，每次都很成功。Cascade和Centennial的组合简直绝配，柑橘香气非常突出。建议干投温度控制在18度左右，香气会更好。',
+    hasBrewed: true,
+    createdAt: daysAgo(45),
+    updatedAt: daysAgo(45),
+  },
+  {
+    id: 'comment-002',
+    recipeId: 'recipe-001',
+    userId: 'user-003',
+    userName: '新手小李',
+    rating: 4,
+    content: '作为入门第一款IPA，效果不错！比预期的略苦一点，可能是我的煮沸效率比较高。下次会把苦花量减少10%试试看。配方整体很清晰，操作指南详细，非常感谢！',
+    hasBrewed: true,
+    createdAt: daysAgo(20),
+    updatedAt: daysAgo(20),
+  },
+  {
+    id: 'comment-003',
+    recipeId: 'recipe-008',
+    userId: 'user-004',
+    userName: '酒花狂魔',
+    rating: 5,
+    content: 'DDH版本太顶了！Citra+Mosaic+Galaxy的组合简直是热带水果炸弹，入口满满的百香果、芒果和松针味，酒体也很干爽，非常适合夏天喝。强烈推荐！',
+    hasBrewed: true,
+    createdAt: daysAgo(10),
+    updatedAt: daysAgo(10),
+  },
+];

@@ -107,6 +107,7 @@ export interface Batch {
   costSnapshot?: CostSnapshot;
   actualCost?: number;
   equipmentIds: string[];
+  brewSteps: BrewStep[];
 }
 
 export interface Tasting {
@@ -328,4 +329,57 @@ export interface Equipment {
   createdAt: string;
   createdBy: string;
   note?: string;
+}
+
+export type BrewStepType =
+  | 'milling'
+  | 'mashing'
+  | 'lautering'
+  | 'boiling'
+  | 'hop_addition'
+  | 'cooling'
+  | 'oxygenation'
+  | 'pitching';
+
+export const BREW_STEP_TYPE_LABELS: Record<BrewStepType, string> = {
+  milling: '磨麦',
+  mashing: '糖化',
+  lautering: '洗糟',
+  boiling: '煮沸',
+  hop_addition: '投酒花',
+  cooling: '冷却',
+  oxygenation: '充氧',
+  pitching: '接种酵母',
+};
+
+export type BrewStepStatus = 'pending' | 'in_progress' | 'completed' | 'skipped';
+
+export const BREW_STEP_STATUS_LABELS: Record<BrewStepStatus, string> = {
+  pending: '待开始',
+  in_progress: '进行中',
+  completed: '已完成',
+  skipped: '已跳过',
+};
+
+export interface BrewStep {
+  id: string;
+  type: BrewStepType;
+  name: string;
+  description: string;
+  order: number;
+  plannedDurationMinutes: number;
+  actualDurationMinutes?: number;
+  status: BrewStepStatus;
+  startedAt?: string;
+  completedAt?: string;
+  hopDetail?: {
+    hopName: string;
+    hopWeight: number;
+    alphaAcid: number;
+    boilTimeMinutes: number;
+  };
+  mashDetail?: {
+    temperature: number;
+  };
+  notes?: string;
 }

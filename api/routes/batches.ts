@@ -1,6 +1,6 @@
 import express, { type Request, type Response } from 'express';
 import { store } from '../data/store.js';
-import type { FermentationReading, ParameterDeviation } from '../../shared/types.js';
+import type { FermentationReading, ParameterDeviation, BrewStep } from '../../shared/types.js';
 
 const router = express.Router();
 
@@ -205,6 +205,91 @@ router.delete('/:id/photos/:photoId', (req: Request, res: Response) => {
     return res.status(404).json({
       success: false,
       error: '批次或照片不存在',
+    });
+  }
+  res.json({
+    success: true,
+    data: batch,
+  });
+});
+
+router.post('/:id/brew-steps/generate', (req: Request, res: Response) => {
+  const batch = store.generateBrewStepsForBatch(req.params.id);
+  if (!batch) {
+    return res.status(404).json({
+      success: false,
+      error: '批次不存在',
+    });
+  }
+  res.json({
+    success: true,
+    data: batch,
+  });
+});
+
+router.put('/:id/brew-steps/:stepId', (req: Request, res: Response) => {
+  const updates = req.body as Partial<BrewStep>;
+  const batch = store.updateBrewStep(req.params.id, req.params.stepId, updates);
+  if (!batch) {
+    return res.status(404).json({
+      success: false,
+      error: '批次或步骤不存在',
+    });
+  }
+  res.json({
+    success: true,
+    data: batch,
+  });
+});
+
+router.post('/:id/brew-steps/:stepId/start', (req: Request, res: Response) => {
+  const batch = store.startBrewStep(req.params.id, req.params.stepId);
+  if (!batch) {
+    return res.status(404).json({
+      success: false,
+      error: '批次或步骤不存在',
+    });
+  }
+  res.json({
+    success: true,
+    data: batch,
+  });
+});
+
+router.post('/:id/brew-steps/:stepId/complete', (req: Request, res: Response) => {
+  const batch = store.completeBrewStep(req.params.id, req.params.stepId);
+  if (!batch) {
+    return res.status(404).json({
+      success: false,
+      error: '批次或步骤不存在',
+    });
+  }
+  res.json({
+    success: true,
+    data: batch,
+  });
+});
+
+router.post('/:id/brew-steps/:stepId/skip', (req: Request, res: Response) => {
+  const batch = store.skipBrewStep(req.params.id, req.params.stepId);
+  if (!batch) {
+    return res.status(404).json({
+      success: false,
+      error: '批次或步骤不存在',
+    });
+  }
+  res.json({
+    success: true,
+    data: batch,
+  });
+});
+
+router.post('/:id/brew-steps/reset', (req: Request, res: Response) => {
+  const batch = store.resetBrewSteps(req.params.id);
+  if (!batch) {
+    return res.status(404).json({
+      success: false,
+      error: '批次不存在',
     });
   }
   res.json({

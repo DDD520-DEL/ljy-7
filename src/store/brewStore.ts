@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Recipe, Batch, Tasting, FermentationReading, ParameterDeviation, RecipeComparison, TastingComparison, UserBrewStats, RecipeComment, InventoryItem, InventoryCheckResult, IngredientShortage, IngredientType, BrewStage, BrewPhoto, Equipment, EquipmentType } from '../../shared/types.js';
+import type { Recipe, Batch, Tasting, FermentationReading, ParameterDeviation, RecipeComparison, TastingComparison, UserBrewStats, RecipeComment, InventoryItem, InventoryCheckResult, IngredientShortage, IngredientType, BrewStage, BrewPhoto, Equipment, EquipmentType, BrewStep } from '../../shared/types.js';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -44,7 +44,7 @@ interface BrewState {
   fetchBatches: (recipeId?: string) => Promise<void>;
   fetchBatchesByDateRange: (startDate: string, endDate: string) => Promise<void>;
   fetchBatchById: (id: string) => Promise<void>;
-  createBatchFromRecipe: (recipeId: string, batchData: Omit<Batch, 'id' | 'recipeId' | 'recipeVersion' | 'createdAt' | 'readings' | 'deviations' | 'photos'>) => Promise<{ batch: Batch; warnings: InventoryCheckResult['warnings'] } | null>;
+  createBatchFromRecipe: (recipeId: string, batchData: Omit<Batch, 'id' | 'recipeId' | 'recipeVersion' | 'createdAt' | 'readings' | 'deviations' | 'photos' | 'brewSteps'>) => Promise<{ batch: Batch; warnings: InventoryCheckResult['warnings'] } | null>;
   updateBatch: (id: string, updates: Partial<Batch>) => Promise<Batch | null>;
   deleteBatch: (id: string) => Promise<boolean>;
   addReading: (batchId: string, reading: Omit<FermentationReading, 'id'>) => Promise<Batch | null>;
@@ -56,6 +56,13 @@ interface BrewState {
   addPhoto: (batchId: string, photo: { url: string; stage: BrewStage; caption: string }) => Promise<Batch | null>;
   updatePhoto: (batchId: string, photoId: string, updates: Partial<BrewPhoto>) => Promise<Batch | null>;
   deletePhoto: (batchId: string, photoId: string) => Promise<Batch | null>;
+
+  generateBrewSteps: (batchId: string) => Promise<Batch | null>;
+  updateBrewStep: (batchId: string, stepId: string, updates: Partial<BrewStep>) => Promise<Batch | null>;
+  startBrewStep: (batchId: string, stepId: string) => Promise<Batch | null>;
+  completeBrewStep: (batchId: string, stepId: string) => Promise<Batch | null>;
+  skipBrewStep: (batchId: string, stepId: string) => Promise<Batch | null>;
+  resetBrewSteps: (batchId: string) => Promise<Batch | null>;
 
   fetchTastings: (params?: { recipeId?: string; batchId?: string }) => Promise<void>;
   fetchTastingById: (id: string) => Promise<void>;
@@ -624,6 +631,145 @@ export const useBrewStore = create<BrewState>((set, _get) => ({
         return response.data;
       } else {
         set({ error: response.error || '删除照片失败', loading: false });
+        return null;
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+      return null;
+    }
+  },
+
+  generateBrewSteps: async (batchId) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<Batch>(`/batches/${batchId}/brew-steps/generate`, {
+        method: 'POST',
+      });
+      if (response.success) {
+        set((state) => ({
+          batches: state.batches.map((b) => (b.id === batchId ? response.data : b)),
+          currentBatch: state.currentBatch?.id === batchId ? response.data : state.currentBatch,
+          loading: false,
+        }));
+        return response.data;
+      } else {
+        set({ error: response.error || '生成酿造步骤失败', loading: false });
+        return null;
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+      return null;
+    }
+  },
+
+  updateBrewStep: async (batchId, stepId, updates) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<Batch>(`/batches/${batchId}/brew-steps/${stepId}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+      if (response.success) {
+        set((state) => ({
+          batches: state.batches.map((b) => (b.id === batchId ? response.data : b)),
+          currentBatch: state.currentBatch?.id === batchId ? response.data : state.currentBatch,
+          loading: false,
+        }));
+        return response.data;
+      } else {
+        set({ error: response.error || '更新步骤失败', loading: false });
+        return null;
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+      return null;
+    }
+  },
+
+  startBrewStep: async (batchId, stepId) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<Batch>(`/batches/${batchId}/brew-steps/${stepId}/start`, {
+        method: 'POST',
+      });
+      if (response.success) {
+        set((state) => ({
+          batches: state.batches.map((b) => (b.id === batchId ? response.data : b)),
+          currentBatch: state.currentBatch?.id === batchId ? response.data : state.currentBatch,
+          loading: false,
+        }));
+        return response.data;
+      } else {
+        set({ error: response.error || '开始步骤失败', loading: false });
+        return null;
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+      return null;
+    }
+  },
+
+  completeBrewStep: async (batchId, stepId) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<Batch>(`/batches/${batchId}/brew-steps/${stepId}/complete`, {
+        method: 'POST',
+      });
+      if (response.success) {
+        set((state) => ({
+          batches: state.batches.map((b) => (b.id === batchId ? response.data : b)),
+          currentBatch: state.currentBatch?.id === batchId ? response.data : state.currentBatch,
+          loading: false,
+        }));
+        return response.data;
+      } else {
+        set({ error: response.error || '完成步骤失败', loading: false });
+        return null;
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+      return null;
+    }
+  },
+
+  skipBrewStep: async (batchId, stepId) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<Batch>(`/batches/${batchId}/brew-steps/${stepId}/skip`, {
+        method: 'POST',
+      });
+      if (response.success) {
+        set((state) => ({
+          batches: state.batches.map((b) => (b.id === batchId ? response.data : b)),
+          currentBatch: state.currentBatch?.id === batchId ? response.data : state.currentBatch,
+          loading: false,
+        }));
+        return response.data;
+      } else {
+        set({ error: response.error || '跳过步骤失败', loading: false });
+        return null;
+      }
+    } catch (_error) {
+      set({ error: '网络错误', loading: false });
+      return null;
+    }
+  },
+
+  resetBrewSteps: async (batchId) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<Batch>(`/batches/${batchId}/brew-steps/reset`, {
+        method: 'POST',
+      });
+      if (response.success) {
+        set((state) => ({
+          batches: state.batches.map((b) => (b.id === batchId ? response.data : b)),
+          currentBatch: state.currentBatch?.id === batchId ? response.data : state.currentBatch,
+          loading: false,
+        }));
+        return response.data;
+      } else {
+        set({ error: response.error || '重置步骤失败', loading: false });
         return null;
       }
     } catch (_error) {

@@ -1,14 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Plus, Calendar, AlertCircle, Thermometer, Droplets, Beaker, Trash2, Save, X, DollarSign, Edit2, AlertTriangle, Image as ImageIcon, Settings, Droplets as DropletsIcon, Flame, Refrigerator, Cog, Wrench } from 'lucide-react';
+import { ArrowLeft, Plus, Calendar, AlertCircle, Thermometer, Droplets, Beaker, Trash2, Save, X, DollarSign, Edit2, AlertTriangle, Image as ImageIcon, Settings, Droplets as DropletsIcon, Flame, Refrigerator, Cog, Wrench, ListTodo } from 'lucide-react';
 import { Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, ReferenceLine } from 'recharts';
 import { useBrewStore } from '../store/brewStore.js';
 import { BATCH_STATUS_LABELS, EQUIPMENT_TYPE_LABELS } from '../../shared/types.js';
-import type { ParameterDeviation, BatchStatus, BrewStage, Equipment, EquipmentType } from '../../shared/types.js';
+import type { ParameterDeviation, BatchStatus, BrewStage, Equipment, EquipmentType, BrewStep } from '../../shared/types.js';
 import { cn } from '../lib/utils.js';
 import { formatCurrency, checkBatchAnomaly, FERMENTATION_ANOMALY_THRESHOLD, calculateExpectedGravity, formatGravity } from '../utils/calculations.js';
 import MarkdownEditor from '../components/MarkdownEditor.js';
 import BrewPhotoGallery from '../components/BrewPhotoGallery.js';
+import BrewChecklist from '../components/BrewChecklist.js';
 
 const equipmentTypeIcons: Record<EquipmentType, React.ReactNode> = {
   mash_tun: <DropletsIcon className="w-5 h-5" />,
@@ -94,8 +95,8 @@ function renderMarkdownToHtml(text: string): string {
 export default function BatchDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { currentBatch, currentRecipe, tastings, equipment, loading, error, fetchBatchById, fetchRecipeById, fetchTastings, fetchEquipment, updateBatch, addReading, addDeviation, deleteBatch, deleteReading, updateBatchNotes, addPhoto, updatePhoto, deletePhoto } = useBrewStore();
-  const [activeTab, setActiveTab] = useState<'overview' | 'readings' | 'deviations' | 'tastings' | 'photos'>('overview');
+  const { currentBatch, currentRecipe, tastings, equipment, loading, error, fetchBatchById, fetchRecipeById, fetchTastings, fetchEquipment, updateBatch, addReading, addDeviation, deleteBatch, deleteReading, updateBatchNotes, addPhoto, updatePhoto, deletePhoto, generateBrewSteps, updateBrewStep, startBrewStep, completeBrewStep, skipBrewStep, resetBrewSteps } = useBrewStore();
+  const [activeTab, setActiveTab] = useState<'overview' | 'checklist' | 'readings' | 'deviations' | 'tastings' | 'photos'>('overview');
   const [showAddReading, setShowAddReading] = useState(false);
   const [showAddDeviation, setShowAddDeviation] = useState(false);
   const [isEditingNotes, setIsEditingNotes] = useState(false);
@@ -761,18 +762,19 @@ export default function BatchDetail() {
 
       <div className="border-b border-gray-200 mb-6">
         <nav className="flex gap-8 overflow-x-auto">
-          {(['overview', 'readings', 'deviations', 'tastings', 'photos'] as const).map(tab => (
+          {(['overview', 'checklist', 'readings', 'deviations', 'tastings', 'photos'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={cn(
-                "pb-3 px-1 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
+                "pb-3 px-1 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5",
                 activeTab === tab
                   ? "border-amber-600 text-amber-600"
                   : "border-transparent text-gray-500 hover:text-gray-700"
               )}
             >
               {tab === 'overview' ? '概览' :
+               tab === 'checklist' ? (<><ListTodo size={14} />酿造步骤 ({currentBatch.brewSteps?.filter(s => s.status === 'completed').length || 0}/{currentBatch.brewSteps?.length || 0}</>) :
                tab === 'readings' ? `发酵读数 (${currentBatch.readings.length})` :
                tab === 'deviations' ? `参数偏差 (${currentBatch.deviations.length})` :
                tab === 'tastings' ? `品鉴记录 (${tastings.length})` :
@@ -1032,6 +1034,17 @@ export default function BatchDetail() {
             </div>
           )}
         </div>
+      )}
+
+      {activeTab === 'checklist' && (
+        <BrewChecklist
+          batch={currentBatch}
+          onStartStep={(stepId) => id && startBrewStep(id, stepId)}
+          onCompleteStep={(stepId) => id && completeBrewStep(id, stepId)}
+          onSkipStep={(stepId) => id && skipBrewStep(id, stepId)}
+          onResetSteps={() => id && generateBrewSteps(id)}
+          onUpdateStep={(stepId, updates) => id && updateBrewStep(id, stepId, updates)}
+        />
       )}
 
       {activeTab === 'deviations' && (
